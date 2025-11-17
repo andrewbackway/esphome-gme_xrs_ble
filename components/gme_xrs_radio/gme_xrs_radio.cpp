@@ -32,6 +32,43 @@ static bool g_security_configured = false;
 
 // 49535343-8841-43F4-A8D4-ECBE34729BB3 RX
 
+// Helper: convert bytes to hex string for logging
+static std::string format_hex(const uint8_t* data, uint16_t len) {
+  std::string out;
+  out.reserve(len * 2);
+  for (uint16_t i = 0; i < len; i++) {
+    char buf[3];
+    sprintf(buf, "%02X", data[i]);
+    out += buf;
+  }
+  return out;
+}
+
+// Helper: sanitise ASCII for logging / text sensor
+static std::string sanitize_ascii(const uint8_t* data, uint16_t len) {
+  std::string out;
+  out.reserve(len);
+
+  for (uint16_t i = 0; i < len; i++) {
+    uint8_t c = data[i];
+
+    // Keep printable ASCII plus CR/LF and basic whitespace
+    if ((c >= 32 && c <= 126) || c == '\r' || c == '\n' || c == '\t') {
+      out.push_back(static_cast<char>(c));
+    } else {
+      // Replace non-printable with dot
+      out.push_back('.');
+    }
+  }
+
+  // Trim trailing CR/LF for nicer UI
+  while (!out.empty() && (out.back() == '\r' || out.back() == '\n')) {
+    out.pop_back();
+  }
+
+  return out;
+}
+
 // Configure BLE security to match the GME XRS / Microchip expectations.
 //
 // - LE Secure Connections ONLY
@@ -164,11 +201,35 @@ void GmeXrsRadioComponent::gattc_event_handler(
       break;
     }
 
-    case ESP_GATTC_NOTIFY_EVT: {
+    /*case ESP_GATTC_NOTIFY_EVT: {
       if (param->notify.conn_id != this->parent()->get_conn_id()) break;
 
       this->handle_notify_(param->notify.handle, param->notify.value,
                            param->notify.value_len);
+      break;
+    }*/
+    case ESP_GATTC_NOTIFY_EVT: {
+      const auto& n = param->notify;
+
+      uint16_t handle = n.handle;
+      uint16_t len = n.value_len;
+      const uint8_t* data = n.value;
+
+      ESP_LOGD(TAG, "GATT notify from XRS: handle=0x%04X, len=%u", handle, len);
+      if (data != nullptr && len > 0) {
+        std::string hex = format_hex(data, len);
+        std::string txt = sanitize_ascii(data, len);
+
+        ESP_LOGD(TAG, "XRS notify (hex): %s", hex.c_str());
+        ESP_LOGI(TAG, "XRS notify (ascii): '%s'", txt.c_str());
+
+        // Push into the status_text text_sensor, if configured
+        if (this->status_text_ != nullptr) {
+          this->status_text_->publish_state(txt);
+        }
+      } else {
+        ESP_LOGW(TAG, "XRS notify with empty payload (handle=0x%04X)", handle);
+      }
       break;
     }
 
