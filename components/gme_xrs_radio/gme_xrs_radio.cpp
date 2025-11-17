@@ -2,6 +2,8 @@
 
 #include <esp_gattc_api.h>
 #include <esp_gatt_defs.h>
+#include "esp_gap_ble_api.h"
+#include "esp_err.h"
 
 namespace esphome {
 namespace gme_xrs_radio {
@@ -16,12 +18,70 @@ static const char *const GME_XRS_SERVICE_STR = "49535343-fe7d-4ae5-8fa9-9fafd205
 static const char *const GME_XRS_CHAR_TX_STR = "49535343-8841-43f4-a8d4-ecbe34729bb3";
 
 // Notify/stream characteristics
-static const char *const GME_XRS_CHAR_NOTIFY_MAIN_STR = "49535343-1e4d-4bd9-ba61-23c647249616";
+static const char *const GME_XRS_CHAR_NOTIFY_MAIN_STR = "49535343-1e4d-4bd9-ba61-23c647249616"; // TX
 static const char *const GME_XRS_CHAR_NOTIFY_AUX1_STR = "49535343-aca3-481c-91ec-d85e28a60318";
 static const char *const GME_XRS_CHAR_NOTIFY_AUX2_STR = "49535343-026e-3a9b-954c-97daef17e26e";
 
+
+// 49535343-8841-43F4-A8D4-ECBE34729BB3 RX
+
+
+// Configure BLE security to match the GME XRS / Microchip expectations.
+//
+// - LE Secure Connections ONLY
+// - MITM protection (numeric comparison)
+// - Bonding enabled
+// - 16-byte key size
+// - Exchange ENC + ID keys, no OOB
+static void configure_gme_xrs_security() {
+  // Auth requirement: SC + MITM + Bonding
+  esp_ble_auth_req_t auth_req = ESP_LE_AUTH_REQ_SC_MITM_BOND;
+
+  // 16-byte key (max for BLE)
+  uint8_t key_size = 16;
+
+  // Exchange encryption and identity keys both ways
+  uint8_t init_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
+  uint8_t resp_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
+
+  // No out-of-band data
+  uint8_t oob_enable = ESP_BLE_OOB_DISABLE;
+
+  esp_err_t err;
+
+  err = esp_ble_gap_set_security_param(ESP_BLE_SM_AUTHEN_REQ_MODE,
+                                       &auth_req, sizeof(auth_req));
+  ESP_LOGI(TAG, "GME XRS: set AUTHEN_REQ_MODE=0x%02X -> %s",
+           auth_req, esp_err_to_name(err));
+
+  err = esp_ble_gap_set_security_param(ESP_BLE_SM_MAX_KEY_SIZE,
+                                       &key_size, sizeof(key_size));
+  ESP_LOGI(TAG, "GME XRS: set MAX_KEY_SIZE=%u -> %s",
+           key_size, esp_err_to_name(err));
+
+  err = esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY,
+                                       &init_key, sizeof(init_key));
+  ESP_LOGI(TAG, "GME XRS: set INIT_KEY mask=0x%02X -> %s",
+           init_key, esp_err_to_name(err));
+
+  err = esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY,
+                                       &resp_key, sizeof(resp_key));
+  ESP_LOGI(TAG, "GME XRS: set RSP_KEY mask=0x%02X -> %s",
+           resp_key, esp_err_to_name(err));
+
+  err = esp_ble_gap_set_security_param(ESP_BLE_SM_OOB_SUPPORT,
+                                       &oob_enable, sizeof(oob_enable));
+  ESP_LOGI(TAG, "GME XRS: set OOB_SUPPORT=%u -> %s",
+           oob_enable, esp_err_to_name(err));
+}
+
+
 void GmeXrsRadioComponent::setup() {
   ESP_LOGCONFIG(TAG, "Setting up GME XRS radio (BLE)...");
+
+  / Tighten BLE security for GME XRS before any connections occur.
+  configure_gme_xrs_security();
+
   // BLEClientNode::node_state is used by ble_client to know when we're ready.
   this->node_state = espbt::ClientState::INIT;
 }
@@ -57,6 +117,15 @@ void GmeXrsRadioComponent::gattc_event_handler(esp_gattc_cb_event_t event, esp_g
       } else {
         ESP_LOGW(TAG, "Failed to open GATT connection, status=0x%02X", param->open.status);
       }
+      break;
+    }
+
+    case ESP_GATTC_ENC_CMPL_CB_EVT: {
+      // We get this when link encryption / key negotiation has completed.
+      // The BLE client layer already logs "auth complete" + reason,
+      // but this gives us a component-level hook so we can correlate it.
+      ESP_LOGI(TAG,
+               "GATT ENC_CMPL event received (encryption / security completed on XRS link)");
       break;
     }
 
