@@ -79,7 +79,7 @@ static void configure_gme_xrs_security() {
 void GmeXrsRadioComponent::setup() {
   ESP_LOGCONFIG(TAG, "Setting up GME XRS radio (BLE)...");
 
-  / Tighten BLE security for GME XRS before any connections occur.
+  // Tighten BLE security for GME XRS before any connections occur.
   configure_gme_xrs_security();
 
   // BLEClientNode::node_state is used by ble_client to know when we're ready.
