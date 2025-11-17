@@ -169,7 +169,7 @@ void GmeXrsRadioComponent::handle_search_complete_() {
     // Write CCC descriptor (0x2902) if available
     auto *descr = this->parent()->get_descriptor(
         service_uuid,
-        chr->get_uuid(),
+        chr->uuid,
         esp32_ble::ESPBTUUID::from_uint16(ESP_GATT_UUID_CHAR_CLIENT_CONFIG));
 
     if (descr != nullptr) {
