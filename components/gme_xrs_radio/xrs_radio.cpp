@@ -6,9 +6,9 @@
 #include "esp_err.h"
 
 namespace esphome {
-namespace xrs_radio {
+namespace gme_xrs_radio {
 
-static const char *const TAG = "xrs_radio";
+static const char *const TAG = "gme_xrs_radio";
 
 // GME XRS primary service UUID
 static const char *const GME_XRS_SERVICE_STR =

@@ -4,6 +4,8 @@ import esphome.config_validation as cv
 from esphome.components import ble_client, sensor, text_sensor
 from esphome.const import CONF_ID
 
+from esphome.components.ble_client import CONF_BLE_CLIENT_ID
+
 CONF_STATUS_TEXT = "status_text"
 CONF_LATITUDE = "latitude"
 CONF_LONGITUDE = "longitude"
@@ -16,6 +18,14 @@ XRSRadioComponent = xrs_radio_ns.class_(
     cg.Component,
     ble_client.BLEClientNode,
 )
+
+# Enums – must match the C++ names
+XRSNumericSensorType = xrs_radio_ns.enum("XRSNumericSensorType")
+XRSBinarySensorType = xrs_radio_ns.enum("XRSBinarySensorType")
+XRSTextSensorType = xrs_radio_ns.enum("XRSTextSensorType")
+XRSNumberType = xrs_radio_ns.enum("XRSNumberType")
+XRSSwitchType = xrs_radio_ns.enum("XRSSwitchType")
+XRSSelectType = xrs_radio_ns.enum("XRSSelectType")
 
 AUTO_LOAD = ["ble_client"]
 
@@ -38,7 +48,7 @@ async def to_code(config):
     await cg.register_component(var, config)
 
     # Wire into the BLE client
-    ble_parent = await cg.get_variable(config["ble_client_id"])
+    ble_parent = await cg.get_variable(config[CONF_BLE_CLIENT_ID])
     cg.add(ble_parent.register_ble_node(var))
 
     # Optional status text sensor

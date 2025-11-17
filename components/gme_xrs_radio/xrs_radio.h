@@ -26,7 +26,7 @@
 #include "xrs_at_parser.h"  // ATParser in namespace esphome::gme_xrs_radio
 
 namespace esphome {
-namespace xrs_radio {
+namespace gme_xrs_radio {
 
 namespace espbt = esphome::esp32_ble_tracker;
 namespace esp32_ble = esphome::esp32_ble;
