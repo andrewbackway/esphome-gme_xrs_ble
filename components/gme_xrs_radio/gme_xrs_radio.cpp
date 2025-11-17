@@ -214,7 +214,7 @@ void GmeXrsRadioComponent::handle_notify_(uint16_t handle, const uint8_t *data, 
     }
   }
 
-  ESP_LOGV(TAG, "Notification from handle 0x%04X (known=%s, len=%u)",
+  ESP_LOGD(TAG, "Notification from handle 0x%04X (known=%s, len=%u)",
            handle, known ? "true" : "false", static_cast<unsigned>(length));
 
   if (length == 0 || data == nullptr)
