@@ -177,7 +177,7 @@ void GmeXrsRadioComponent::handle_search_complete_() {
       auto err2 = esp_ble_gattc_write_char_descr(
           this->parent()->get_gattc_if(),
           this->parent()->get_conn_id(),
-          descr->get_handle(),
+          descr->handle,
           sizeof(notify_en),
           notify_en,
           ESP_GATT_WRITE_TYPE_RSP,
