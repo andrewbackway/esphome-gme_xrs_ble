@@ -1,137 +1,97 @@
-#include "gme_xrs_radio.h"
+#include "xrs_radio.h"
 
-#include <esp_gatt_defs.h>
-#include <esp_gattc_api.h>
-
-#include "esp_err.h"
 #include "esp_gap_ble_api.h"
+#include "esp_gattc_api.h"
+#include "esp_gatt_defs.h"
+#include "esp_err.h"
 
 namespace esphome {
-namespace gme_xrs_radio {
+namespace xrs_radio {
 
-static const char* const TAG = "gme_xrs_radio";
+static const char *const TAG = "xrs_radio";
 
 // GME XRS primary service UUID
-static const char* const GME_XRS_SERVICE_STR =
+static const char *const GME_XRS_SERVICE_STR =
     "49535343-fe7d-4ae5-8fa9-9fafd205e455";
 
-// Candidate characteristic UUIDs (from nRF Connect dump)
-// TX (write)
-static const char* const GME_XRS_CHAR_TX_STR =
+// Command TX characteristic (write)
+static const char *const GME_XRS_CHAR_TX_STR =
     "49535343-8841-43f4-a8d4-ecbe34729bb3";
 
 // Notify/stream characteristics
-static const char* const GME_XRS_CHAR_NOTIFY_MAIN_STR =
-    "49535343-1e4d-4bd9-ba61-23c647249616";  // TX
-static const char* const GME_XRS_CHAR_NOTIFY_AUX1_STR =
+static const char *const GME_XRS_CHAR_NOTIFY_MAIN_STR =
+    "49535343-1e4d-4bd9-ba61-23c647249616";
+static const char *const GME_XRS_CHAR_NOTIFY_AUX1_STR =
     "49535343-aca3-481c-91ec-d85e28a60318";
-static const char* const GME_XRS_CHAR_NOTIFY_AUX2_STR =
+static const char *const GME_XRS_CHAR_NOTIFY_AUX2_STR =
     "49535343-026e-3a9b-954c-97daef17e26e";
 
 static bool g_security_configured = false;
 
-// 49535343-8841-43F4-A8D4-ECBE34729BB3 RX
-
-// Helper: convert bytes to hex string for logging
-static std::string format_hex(const uint8_t* data, uint16_t len) {
-  std::string out;
-  out.reserve(len * 2);
-  for (uint16_t i = 0; i < len; i++) {
-    char buf[3];
-    sprintf(buf, "%02X", data[i]);
-    out += buf;
-  }
-  return out;
-}
-
-// Helper: sanitise ASCII for logging / text sensor
-static std::string sanitize_ascii(const uint8_t* data, uint16_t len) {
-  std::string out;
-  out.reserve(len);
-
-  for (uint16_t i = 0; i < len; i++) {
-    uint8_t c = data[i];
-
-    // Keep printable ASCII plus CR/LF and basic whitespace
-    if ((c >= 32 && c <= 126) || c == '\r' || c == '\n' || c == '\t') {
-      out.push_back(static_cast<char>(c));
-    } else {
-      // Replace non-printable with dot
-      out.push_back('.');
-    }
-  }
-
-  // Trim trailing CR/LF for nicer UI
-  while (!out.empty() && (out.back() == '\r' || out.back() == '\n')) {
-    out.pop_back();
-  }
-
-  return out;
-}
-
-// Configure BLE security to match the GME XRS / Microchip expectations.
-//
-// - LE Secure Connections ONLY
-// - MITM protection (numeric comparison)
-// - Bonding enabled
-// - 16-byte key size
-// - Exchange ENC + ID keys, no OOB
+// Configure BLE security to match the GME XRS expectations.
 static void configure_gme_xrs_security() {
-  // Auth requirement: SC + MITM + Bonding
+  // Auth requirement: LE Secure Connections + MITM + Bonding
   esp_ble_auth_req_t auth_req = ESP_LE_AUTH_REQ_SC_MITM_BOND;
 
-  // 16-byte key (max for BLE)
+  // 16-byte key (max)
   uint8_t key_size = 16;
 
   // Exchange encryption and identity keys both ways
   uint8_t init_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
   uint8_t resp_key = ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK;
 
-  // No out-of-band data
+  // No out-of-band
   uint8_t oob_enable = ESP_BLE_OOB_DISABLE;
 
   esp_err_t err;
 
   err = esp_ble_gap_set_security_param(ESP_BLE_SM_AUTHEN_REQ_MODE, &auth_req,
                                        sizeof(auth_req));
-  ESP_LOGI(TAG, "GME XRS: set AUTHEN_REQ_MODE=0x%02X -> %s", auth_req,
+  ESP_LOGI(TAG, "XRS: set AUTHEN_REQ_MODE=0x%02X -> %s", auth_req,
            esp_err_to_name(err));
 
   err = esp_ble_gap_set_security_param(ESP_BLE_SM_MAX_KEY_SIZE, &key_size,
                                        sizeof(key_size));
-  ESP_LOGI(TAG, "GME XRS: set MAX_KEY_SIZE=%u -> %s", key_size,
+  ESP_LOGI(TAG, "XRS: set MAX_KEY_SIZE=%u -> %s", key_size,
            esp_err_to_name(err));
 
   err = esp_ble_gap_set_security_param(ESP_BLE_SM_SET_INIT_KEY, &init_key,
                                        sizeof(init_key));
-  ESP_LOGI(TAG, "GME XRS: set INIT_KEY mask=0x%02X -> %s", init_key,
+  ESP_LOGI(TAG, "XRS: set INIT_KEY mask=0x%02X -> %s", init_key,
            esp_err_to_name(err));
 
   err = esp_ble_gap_set_security_param(ESP_BLE_SM_SET_RSP_KEY, &resp_key,
                                        sizeof(resp_key));
-  ESP_LOGI(TAG, "GME XRS: set RSP_KEY mask=0x%02X -> %s", resp_key,
+  ESP_LOGI(TAG, "XRS: set RSP_KEY mask=0x%02X -> %s", resp_key,
            esp_err_to_name(err));
 
   err = esp_ble_gap_set_security_param(ESP_BLE_SM_OOB_SUPPORT, &oob_enable,
                                        sizeof(oob_enable));
-  ESP_LOGI(TAG, "GME XRS: set OOB_SUPPORT=%u -> %s", oob_enable,
+  ESP_LOGI(TAG, "XRS: set OOB_SUPPORT=%u -> %s", oob_enable,
            esp_err_to_name(err));
 }
 
-void GmeXrsRadioComponent::setup() {
-  ESP_LOGCONFIG(TAG, "Setting up GME XRS radio (BLE)...");
+XRSRadioComponent::XRSRadioComponent()
+    : at_parser_(this) {}
 
-  // BLEClientNode::node_state is used by ble_client to know when we're ready.
+void XRSRadioComponent::setup() {
+  ESP_LOGCONFIG(TAG, "Setting up XRS radio over BLE...");
   this->node_state = espbt::ClientState::INIT;
 }
 
-void GmeXrsRadioComponent::loop() {
-  // No periodic traffic required; ble_client handles connection state and
-  // retries.
+void XRSRadioComponent::loop() {
+  // Periodic location upload if enabled
+  uint32_t now = millis();
+  if (this->location_mode_ && this->is_client_ready_()) {
+    if (now - this->last_location_sent_ >= this->location_interval_ms_) {
+      this->last_location_sent_ = now;
+      this->send_location_update_();
+    }
+  }
 }
 
-void GmeXrsRadioComponent::dump_config() {
-  ESP_LOGCONFIG(TAG, "GME XRS Radio (BLE) v858");
+void XRSRadioComponent::dump_config() {
+  ESP_LOGCONFIG(TAG, "XRS Radio (BLE)");
   ESP_LOGCONFIG(TAG, "  Service UUID: %s", GME_XRS_SERVICE_STR);
   if (this->parent() != nullptr) {
     ESP_LOGCONFIG(TAG, "  Bound to BLE client index: %u",
@@ -139,10 +99,144 @@ void GmeXrsRadioComponent::dump_config() {
   }
 }
 
-void GmeXrsRadioComponent::gattc_event_handler(
+// -----------------------------------------------------------------------------
+// Registration from Python platforms
+// -----------------------------------------------------------------------------
+
+void XRSRadioComponent::register_numeric_sensor(XRSNumericSensorType type,
+                                                sensor::Sensor *sensor) {
+  switch (type) {
+    case XRS_SENSOR_CHANNEL:
+      this->sensor_channel_ = sensor;
+      break;
+    case XRS_SENSOR_ZONE:
+      this->sensor_zone_ = sensor;
+      break;
+    case XRS_SENSOR_VOLUME:
+      this->sensor_volume_ = sensor;
+      break;
+    case XRS_SENSOR_PTT_TIMER:
+      this->sensor_ptt_timer_ = sensor;
+      break;
+  }
+}
+
+void XRSRadioComponent::register_binary_sensor(XRSBinarySensorType type,
+                                               binary_sensor::BinarySensor *sensor) {
+  switch (type) {
+    case XRS_BIN_CONNECTED:
+      this->bin_connected_ = sensor;
+      break;
+    case XRS_BIN_PTT_ACTIVE:
+      this->bin_ptt_active_ = sensor;
+      break;
+    case XRS_BIN_PTT_DATA:
+      this->bin_ptt_data_ = sensor;
+      break;
+    case XRS_BIN_POWER_LOW:
+      this->bin_power_low_ = sensor;
+      break;
+    case XRS_BIN_SCANNING:
+      this->bin_scanning_ = sensor;
+      break;
+    case XRS_BIN_DUPLEX_ENABLED:
+      this->bin_duplex_enabled_ = sensor;
+      break;
+    case XRS_BIN_SILENT_MEMORY:
+      this->bin_silent_memory_ = sensor;
+      break;
+    case XRS_BIN_QUIET_MEMORY:
+      this->bin_quiet_memory_ = sensor;
+      break;
+    case XRS_BIN_QUIET_MODE:
+      this->bin_quiet_mode_ = sensor;
+      break;
+  }
+}
+
+void XRSRadioComponent::register_text_sensor(XRSTextSensorType type,
+                                             text_sensor::TextSensor *sensor) {
+  switch (type) {
+    case XRS_TEXT_MANUFACTURER:
+      this->text_manufacturer_ = sensor;
+      break;
+    case XRS_TEXT_MODEL:
+      this->text_model_ = sensor;
+      break;
+    case XRS_TEXT_FIRMWARE:
+      this->text_firmware_ = sensor;
+      break;
+    case XRS_TEXT_SERIAL:
+      this->text_serial_ = sensor;
+      break;
+    case XRS_TEXT_LAST_MESSAGE:
+      this->text_last_message_ = sensor;
+      break;
+    case XRS_TEXT_POWER_STATE:
+      this->text_power_state_ = sensor;
+      break;
+    case XRS_TEXT_PTT_STATE:
+      this->text_ptt_state_ = sensor;
+      break;
+    case XRS_TEXT_CHANNEL_LABEL:
+      this->text_channel_label_ = sensor;
+      break;
+  }
+}
+
+void XRSRadioComponent::register_number(XRSNumberType type,
+                                        number::Number *number) {
+  switch (type) {
+    case XRS_NUMBER_VOLUME:
+      this->num_volume_ = number;
+      break;
+  }
+}
+
+void XRSRadioComponent::register_switch(XRSSwitchType type,
+                                        switch_::Switch *sw) {
+  switch (type) {
+    case XRS_SWITCH_LOCATION_MODE:
+      this->sw_location_mode_ = sw;
+      break;
+    case XRS_SWITCH_SCAN:
+      this->sw_scan_ = sw;
+      break;
+    case XRS_SWITCH_DUPLEX:
+      this->sw_duplex_ = sw;
+      break;
+    case XRS_SWITCH_QUIET_MODE:
+      this->sw_quiet_mode_ = sw;
+      break;
+    case XRS_SWITCH_QUIET_MEMORY:
+      this->sw_quiet_memory_ = sw;
+      break;
+    case XRS_SWITCH_SILENT_MEMORY:
+      this->sw_silent_memory_ = sw;
+      break;
+  }
+}
+
+void XRSRadioComponent::register_select(XRSSelectType type,
+                                        select::Select *sel) {
+  switch (type) {
+    case XRSSelectType::XRS_SELECT_ZONE:
+      this->sel_zone_ = sel;
+      break;
+    case XRSSelectType::XRS_SELECT_CHANNEL:
+      this->sel_channel_ = sel;
+      break;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// BLE client callbacks
+// -----------------------------------------------------------------------------
+
+void XRSRadioComponent::gattc_event_handler(
     esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
-    esp_ble_gattc_cb_param_t* param) {
-  (void)gattc_if;
+    esp_ble_gattc_cb_param_t *param) {
+  (void) gattc_if;
 
   if (this->parent() == nullptr) {
     return;
@@ -153,16 +247,14 @@ void GmeXrsRadioComponent::gattc_event_handler(
       ESP_LOGD(TAG, "GATT OPEN_EVT (conn_id=%d, status=0x%02X)",
                param->open.conn_id, param->open.status);
 
-      // Now the BLE stack is fully up; configure security once.
       if (!g_security_configured) {
-        ESP_LOGI(
-            TAG,
-            "Configuring GME XRS BLE security (delayed until OPEN_EVT)...");
+        ESP_LOGI(TAG, "Configuring BLE security for XRS (on OPEN_EVT)...");
         configure_gme_xrs_security();
         g_security_configured = true;
       }
 
-      if (param->open.conn_id != this->parent()->get_conn_id()) break;
+      if (param->open.conn_id != this->parent()->get_conn_id())
+        break;
 
       if (param->open.status == ESP_GATT_OK) {
         ESP_LOGI(TAG, "GATT connection opened (conn_id=%d)",
@@ -176,17 +268,13 @@ void GmeXrsRadioComponent::gattc_event_handler(
     }
 
     case ESP_GATTC_ENC_CMPL_CB_EVT: {
-      // We get this when link encryption / key negotiation has completed.
-      // The BLE client layer already logs "auth complete" + reason,
-      // but this gives us a component-level hook so we can correlate it.
-      ESP_LOGI(TAG,
-               "GATT ENC_CMPL event received (encryption / security completed "
-               "on XRS link)");
+      ESP_LOGI(TAG, "GATT encryption/security completed for XRS link");
       break;
     }
 
     case ESP_GATTC_SEARCH_CMPL_EVT: {
-      if (param->search_cmpl.conn_id != this->parent()->get_conn_id()) break;
+      if (param->search_cmpl.conn_id != this->parent()->get_conn_id())
+        break;
 
       if (param->search_cmpl.status != ESP_GATT_OK) {
         ESP_LOGW(TAG, "Service discovery failed, status=0x%02X",
@@ -194,47 +282,23 @@ void GmeXrsRadioComponent::gattc_event_handler(
         break;
       }
 
-      ESP_LOGI(
-          TAG,
-          "Service discovery complete, configuring XRS characteristics...");
+      ESP_LOGI(TAG, "Service discovery complete, configuring XRS service...");
       this->handle_search_complete_();
       break;
     }
 
-    /*case ESP_GATTC_NOTIFY_EVT: {
-      if (param->notify.conn_id != this->parent()->get_conn_id()) break;
+    case ESP_GATTC_NOTIFY_EVT: {
+      if (param->notify.conn_id != this->parent()->get_conn_id())
+        break;
 
       this->handle_notify_(param->notify.handle, param->notify.value,
                            param->notify.value_len);
       break;
-    }*/
-    case ESP_GATTC_NOTIFY_EVT: {
-      const auto& n = param->notify;
-
-      uint16_t handle = n.handle;
-      uint16_t len = n.value_len;
-      const uint8_t* data = n.value;
-
-      ESP_LOGD(TAG, "GATT notify from XRS: handle=0x%04X, len=%u", handle, len);
-      if (data != nullptr && len > 0) {
-        std::string hex = format_hex(data, len);
-        std::string txt = sanitize_ascii(data, len);
-
-        ESP_LOGD(TAG, "XRS notify (hex): %s", hex.c_str());
-        ESP_LOGI(TAG, "XRS notify (ascii): '%s'", txt.c_str());
-
-        // Push into the status_text text_sensor, if configured
-        if (this->status_text_ != nullptr) {
-          this->status_text_->publish_state(txt);
-        }
-      } else {
-        ESP_LOGW(TAG, "XRS notify with empty payload (handle=0x%04X)", handle);
-      }
-      break;
     }
 
     case ESP_GATTC_WRITE_CHAR_EVT: {
-      if (param->write.conn_id != this->parent()->get_conn_id()) break;
+      if (param->write.conn_id != this->parent()->get_conn_id())
+        break;
 
       if (param->write.status != ESP_GATT_OK) {
         ESP_LOGW(TAG, "Write failed (handle=0x%04X, status=0x%02X)",
@@ -243,8 +307,7 @@ void GmeXrsRadioComponent::gattc_event_handler(
         if (param->write.status == ESP_GATT_INSUF_AUTHENTICATION ||
             param->write.status == ESP_GATT_INSUF_ENCRYPTION) {
           ESP_LOGI(TAG,
-                   "Write failed due to authentication; requesting "
-                   "pairing/encryption");
+                   "Write failed due to authentication; requesting pairing");
           this->ensure_paired_();
         }
       }
@@ -252,13 +315,15 @@ void GmeXrsRadioComponent::gattc_event_handler(
     }
 
     case ESP_GATTC_DISCONNECT_EVT: {
-      if (!this->parent()->check_addr(param->disconnect.remote_bda)) break;
+      if (!this->parent()->check_addr(param->disconnect.remote_bda))
+        break;
 
       ESP_LOGI(TAG, "Disconnected from XRS (reason=0x%02X)",
                param->disconnect.reason);
       this->tx_char_ = nullptr;
       this->notify_handles_.clear();
-      this->node_state = this->node_state = espbt::ClientState::IDLE;
+      this->node_state = espbt::ClientState::IDLE;
+      this->publish_connection_state_(false);
       break;
     }
 
@@ -267,29 +332,28 @@ void GmeXrsRadioComponent::gattc_event_handler(
   }
 }
 
-void GmeXrsRadioComponent::gap_event_handler(esp_gap_ble_cb_event_t event,
-                                             esp_ble_gap_cb_param_t* param) {
-  // For now we rely on the global BLE client security handling.
-  // This hook is available if you want to customise passkey / NC behaviour
-  // later.
-  (void)event;
-  (void)param;
+void XRSRadioComponent::gap_event_handler(esp_gap_ble_cb_event_t event,
+                                          esp_ble_gap_cb_param_t *param) {
+  (void) event;
+  (void) param;
 }
 
-void GmeXrsRadioComponent::handle_search_complete_() {
-  using esp32_ble::ESPBTUUID;
+// Discover characteristics and register for notifications
+void XRSRadioComponent::handle_search_complete_() {
+  auto service_uuid = esp32_ble::ESPBTUUID::from_raw(GME_XRS_SERVICE_STR);
 
-  auto service_uuid = ESPBTUUID::from_raw(GME_XRS_SERVICE_STR);
-
-  auto tx_uuid = ESPBTUUID::from_raw(GME_XRS_CHAR_TX_STR);
-  auto notify_main_uuid = ESPBTUUID::from_raw(GME_XRS_CHAR_NOTIFY_MAIN_STR);
-  auto notify_aux1_uuid = ESPBTUUID::from_raw(GME_XRS_CHAR_NOTIFY_AUX1_STR);
-  auto notify_aux2_uuid = ESPBTUUID::from_raw(GME_XRS_CHAR_NOTIFY_AUX2_STR);
+  auto tx_uuid = esp32_ble::ESPBTUUID::from_raw(GME_XRS_CHAR_TX_STR);
+  auto notify_main_uuid =
+      esp32_ble::ESPBTUUID::from_raw(GME_XRS_CHAR_NOTIFY_MAIN_STR);
+  auto notify_aux1_uuid =
+      esp32_ble::ESPBTUUID::from_raw(GME_XRS_CHAR_NOTIFY_AUX1_STR);
+  auto notify_aux2_uuid =
+      esp32_ble::ESPBTUUID::from_raw(GME_XRS_CHAR_NOTIFY_AUX2_STR);
 
   // Resolve TX (command) characteristic
   this->tx_char_ = this->parent()->get_characteristic(service_uuid, tx_uuid);
   if (this->tx_char_ == nullptr) {
-    ESP_LOGW(TAG, "TX char 8841 not found, falling back to notify_main as TX");
+    ESP_LOGW(TAG, "TX char 8841 not found, falling back to main notify as TX");
     this->tx_char_ =
         this->parent()->get_characteristic(service_uuid, notify_main_uuid);
   }
@@ -304,16 +368,17 @@ void GmeXrsRadioComponent::handle_search_complete_() {
   // Register for notifications on all three notify-capable chars
   this->notify_handles_.clear();
 
-  auto* chr_main =
+  auto *chr_main =
       this->parent()->get_characteristic(service_uuid, notify_main_uuid);
-  auto* chr_aux1 =
+  auto *chr_aux1 =
       this->parent()->get_characteristic(service_uuid, notify_aux1_uuid);
-  auto* chr_aux2 =
+  auto *chr_aux2 =
       this->parent()->get_characteristic(service_uuid, notify_aux2_uuid);
 
   auto register_notify = [this, &service_uuid](
-                             esp32_ble_client::BLECharacteristic* chr) {
-    if (chr == nullptr) return;
+                             esp32_ble_client::BLECharacteristic *chr) {
+    if (chr == nullptr)
+      return;
 
     const uint16_t handle = chr->handle;
     this->notify_handles_.push_back(handle);
@@ -327,24 +392,26 @@ void GmeXrsRadioComponent::handle_search_complete_() {
       return;
     }
 
-    // Write CCC descriptor (0x2902) if available
-    auto* descr = this->parent()->get_descriptor(
+    // Write CCC descriptor 0x2902 if available
+    auto *descr = this->parent()->get_descriptor(
         service_uuid, chr->uuid,
-        esp32_ble::ESPBTUUID::from_uint16(ESP_GATT_UUID_CHAR_CLIENT_CONFIG));
+        esp32_ble::ESPBTUUID::from_uint16(
+            ESP_GATT_UUID_CHAR_CLIENT_CONFIG));
 
     if (descr != nullptr) {
       uint8_t notify_en[2] = {0x01, 0x00};  // notifications enabled
       auto err2 = esp_ble_gattc_write_char_descr(
           this->parent()->get_gattc_if(), this->parent()->get_conn_id(),
-          descr->handle, sizeof(notify_en), notify_en, ESP_GATT_WRITE_TYPE_RSP,
-          ESP_GATT_AUTH_REQ_NONE);
+          descr->handle, sizeof(notify_en), notify_en,
+          ESP_GATT_WRITE_TYPE_RSP, ESP_GATT_AUTH_REQ_NONE);
 
       if (err2 != ESP_OK) {
         ESP_LOGW(TAG, "Failed to write CCC descriptor for 0x%04X (err=%d)",
                  handle, err2);
       }
     } else {
-      ESP_LOGW(TAG, "No CCC descriptor found for notify handle 0x%04X", handle);
+      ESP_LOGW(TAG, "No CCC descriptor found for notify handle 0x%04X",
+               handle);
     }
   };
 
@@ -360,10 +427,21 @@ void GmeXrsRadioComponent::handle_search_complete_() {
   }
 
   this->node_state = espbt::ClientState::ESTABLISHED;
+  this->publish_connection_state_(true);
+
+  // Initial handshake: echo on, verbose, and basic IDs.
+  this->send_raw_command("ATE1");
+  this->send_raw_command("ATV1");
+  this->send_raw_command("AT+GMI?");
+  this->send_raw_command("AT+GMM?");
+  this->send_raw_command("AT+GMR?");
+  this->send_raw_command("AT+GSN?");
+  this->send_raw_command("AT+GOI?");
+  // If you have a channel table query (e.g. AT+WGCHSQ), send it here as well.
 }
 
-void GmeXrsRadioComponent::handle_notify_(uint16_t handle, const uint8_t* data,
-                                          uint16_t length) {
+void XRSRadioComponent::handle_notify_(uint16_t handle, const uint8_t *data,
+                                       uint16_t length) {
   bool known = false;
   for (auto h : this->notify_handles_) {
     if (h == handle) {
@@ -375,62 +453,492 @@ void GmeXrsRadioComponent::handle_notify_(uint16_t handle, const uint8_t* data,
   ESP_LOGD(TAG, "Notification from handle 0x%04X (known=%s, len=%u)", handle,
            known ? "true" : "false", static_cast<unsigned>(length));
 
-  if (length == 0 || data == nullptr) return;
+  if (length == 0 || data == nullptr)
+    return;
 
-  // Append to ASCII line buffer and process full lines
-  this->rx_buffer_.append(reinterpret_cast<const char*>(data), length);
-  this->process_rx_buffer_();
+  // Feed raw stream into AT parser
+  this->at_parser_.feed(data, length);
 }
 
-void GmeXrsRadioComponent::process_rx_buffer_() {
-  std::size_t pos;
-  while ((pos = this->rx_buffer_.find('\n')) != std::string::npos) {
-    std::string line = this->rx_buffer_.substr(0, pos);
-    this->rx_buffer_.erase(0, pos + 1);
+// -----------------------------------------------------------------------------
+// ATParserListener implementation
+// -----------------------------------------------------------------------------
 
-    // Trim CR
-    if (!line.empty() && line.back() == '\r') line.pop_back();
+void XRSRadioComponent::on_result_code(gme_xrs_radio::ATResultCode code) {
+  const char *text = (code == gme_xrs_radio::ATResultCode::OK) ? "OK" : "ERROR";
+  ESP_LOGI(TAG, "AT result: %s", text);
+  this->publish_status_(std::string("Result: ") + text);
+}
 
-    if (line.empty()) continue;
+void XRSRadioComponent::on_plus_line(const std::string &name,
+                                     const std::string &payload) {
+  if (payload.empty()) {
+    ESP_LOGI(TAG, "AT +%s", name.c_str());
+    this->publish_status_(std::string("+") + name);
+  } else {
+    ESP_LOGI(TAG, "AT +%s: %s", name.c_str(), payload.c_str());
+    this->publish_status_(std::string("+") + name + ": " + payload);
+  }
 
-    this->handle_line_(line);
+  // Device ID responses
+  if (name == "GMI") {
+    this->handle_plus_gmi_(payload);
+    return;
+  }
+  if (name == "GMM") {
+    this->handle_plus_gmm_(payload);
+    return;
+  }
+  if (name == "GMR") {
+    this->handle_plus_gmr_(payload);
+    return;
+  }
+  if (name == "GSN") {
+    this->handle_plus_gsn_(payload);
+    return;
+  }
+
+  // Channel / zone / PTT / power notifications
+  if (name == "WGCHS") {
+    this->handle_plus_wgchs_(payload);
+    return;
+  }
+  if (name == "WHZS") {
+    this->handle_plus_whzs_(payload);
+    return;
+  }
+  if (name == "WGPTT") {
+    this->handle_plus_wgptt_(payload);
+    return;
+  }
+  if (name == "WGPOW") {
+    this->handle_plus_wgpow_(payload);
+    return;
+  }
+  if (name == "WGSCAN") {
+    this->handle_plus_wgscan_(payload);
+    return;
+  }
+  if (name == "WGDUP") {
+    this->handle_plus_wgdup_(payload);
+    return;
+  }
+  if (name == "WGCSM") {
+    this->handle_plus_wgcsm_(payload);
+    return;
+  }
+  if (name == "WGSQM") {
+    this->handle_plus_wgsqm_(payload);
+    return;
+  }
+  if (name == "WGSSQ") {
+    this->handle_plus_wgssq_(payload);
+    return;
+  }
+  if (name == "WGCHSQ") {
+    this->handle_plus_wgchsq_(payload);
+    return;
+  }
+
+  // Fallback: update "last message" text sensor
+  if (this->text_last_message_ != nullptr) {
+    this->text_last_message_->publish_state("+" + name + (payload.empty() ? "" : ": " + payload));
   }
 }
 
-void GmeXrsRadioComponent::handle_line_(const std::string& line) {
-  ESP_LOGI(TAG, "RX: %s", line.c_str());
+void XRSRadioComponent::on_info_line(const std::string &line) {
+  ESP_LOGI(TAG, "AT info: %s", line.c_str());
   this->publish_status_(line);
+  if (this->text_last_message_ != nullptr) {
+    this->text_last_message_->publish_state(line);
+  }
+}
 
-  // Minimal example parsing for +WGCHS: 1,41 messages
-  // (head 1, channel 41, etc.)
-  if (line.rfind("+WGCHS:", 0) == 0) {
-    int head = 0;
-    int channel = 0;
-    if (sscanf(line.c_str(), "+WGCHS: %d,%d", &head, &channel) == 2) {
-      ESP_LOGI(TAG, "Parsed WGCHS: head=%d channel=%d", head, channel);
-      // Hook for later: update channel select / sensor when you add them.
+void XRSRadioComponent::on_echo(const std::string &line) {
+  ESP_LOGD(TAG, "AT echo: %s", line.c_str());
+}
+
+void XRSRadioComponent::on_unknown_line(const std::string &line) {
+  ESP_LOGW(TAG, "AT unknown line: %s", line.c_str());
+  this->publish_status_(line);
+}
+
+// -----------------------------------------------------------------------------
+// AT "+" line handlers
+// -----------------------------------------------------------------------------
+
+void XRSRadioComponent::handle_plus_gmi_(const std::string &payload) {
+  this->manufacturer_ = payload;
+  if (this->text_manufacturer_ != nullptr)
+    this->text_manufacturer_->publish_state(this->manufacturer_);
+}
+
+void XRSRadioComponent::handle_plus_gmm_(const std::string &payload) {
+  this->model_ = payload;
+  if (this->text_model_ != nullptr)
+    this->text_model_->publish_state(this->model_);
+}
+
+void XRSRadioComponent::handle_plus_gmr_(const std::string &payload) {
+  this->firmware_ = payload;
+  if (this->text_firmware_ != nullptr)
+    this->text_firmware_->publish_state(this->firmware_);
+}
+
+void XRSRadioComponent::handle_plus_gsn_(const std::string &payload) {
+  this->serial_ = payload;
+  if (this->text_serial_ != nullptr)
+    this->text_serial_->publish_state(this->serial_);
+}
+
+void XRSRadioComponent::handle_plus_wgchs_(const std::string &payload) {
+  int zone = 0;
+  int ch = 0;
+  if (sscanf(payload.c_str(), "%d,%d", &zone, &ch) == 2) {
+    this->current_zone_ = static_cast<uint8_t>(zone);
+    this->current_channel_ = static_cast<uint8_t>(ch);
+
+    if (this->sensor_zone_ != nullptr)
+      this->sensor_zone_->publish_state(zone);
+    if (this->sensor_channel_ != nullptr)
+      this->sensor_channel_->publish_state(ch);
+
+    auto label = this->get_channel_label_(this->current_zone_,
+                                          this->current_channel_);
+    if (this->text_channel_label_ != nullptr)
+      this->text_channel_label_->publish_state(label);
+  }
+}
+
+void XRSRadioComponent::handle_plus_whzs_(const std::string &payload) {
+  int zone = 0;
+  if (sscanf(payload.c_str(), "%d", &zone) == 1) {
+    this->current_zone_ = static_cast<uint8_t>(zone);
+    if (this->sensor_zone_ != nullptr)
+      this->sensor_zone_->publish_state(zone);
+  }
+}
+
+void XRSRadioComponent::handle_plus_wgptt_(const std::string &payload) {
+  int state = 0;
+  int timer_ms = 0;
+  // Payload can be "<state>" or "<state>,<timer>"
+  int count = sscanf(payload.c_str(), "%d,%d", &state, &timer_ms);
+  this->ptt_state_ = static_cast<uint8_t>(state);
+  if (count == 2) {
+    this->ptt_timer_seconds_ = timer_ms / 1000.0f;
+  } else {
+    this->ptt_timer_seconds_ = 0.0f;
+  }
+
+  if (this->sensor_ptt_timer_ != nullptr)
+    this->sensor_ptt_timer_->publish_state(this->ptt_timer_seconds_);
+
+  bool voice = (state == 1 || state == 2);
+  bool data = (state == 2);
+
+  if (this->bin_ptt_active_ != nullptr)
+    this->bin_ptt_active_->publish_state(voice);
+  if (this->bin_ptt_data_ != nullptr)
+    this->bin_ptt_data_->publish_state(data);
+
+  if (this->text_ptt_state_ != nullptr) {
+    std::string txt;
+    switch (state) {
+      case 0:
+        txt = "Idle";
+        break;
+      case 1:
+        txt = "Voice";
+        break;
+      case 2:
+        txt = "Voice+Data";
+        break;
+      default:
+        txt = "Unknown";
+        break;
+    }
+    this->text_ptt_state_->publish_state(txt);
+  }
+}
+
+void XRSRadioComponent::handle_plus_wgpow_(const std::string &payload) {
+  int state = 0;
+  if (sscanf(payload.c_str(), "%d", &state) != 1)
+    return;
+
+  this->power_state_ = static_cast<uint8_t>(state);
+
+  if (this->bin_power_low_ != nullptr) {
+    bool low = (state == 5);  // From spec: 5 = low battery
+    this->bin_power_low_->publish_state(low);
+  }
+
+  if (this->text_power_state_ != nullptr) {
+    std::string txt;
+    switch (state) {
+      case 0:
+        txt = "Booting";
+        break;
+      case 1:
+        txt = "Running";
+        break;
+      case 2:
+        txt = "Reset";
+        break;
+      case 3:
+        txt = "Power down";
+        break;
+      case 4:
+        txt = "Powered off";
+        break;
+      case 5:
+        txt = "Low battery";
+        break;
+      default:
+        txt = "Unknown";
+        break;
+    }
+    this->text_power_state_->publish_state(txt);
+  }
+}
+
+void XRSRadioComponent::handle_plus_wgscan_(const std::string &payload) {
+  int enabled = 0;
+  if (sscanf(payload.c_str(), "%d", &enabled) != 1)
+    return;
+
+  this->scanning_ = (enabled != 0);
+  if (this->bin_scanning_ != nullptr)
+    this->bin_scanning_->publish_state(this->scanning_);
+}
+
+void XRSRadioComponent::handle_plus_wgdup_(const std::string &payload) {
+  int enabled = 0;
+  if (sscanf(payload.c_str(), "%d", &enabled) != 1)
+    return;
+
+  this->duplex_enabled_ = (enabled != 0);
+  if (this->bin_duplex_enabled_ != nullptr)
+    this->bin_duplex_enabled_->publish_state(this->duplex_enabled_);
+}
+
+void XRSRadioComponent::handle_plus_wgcsm_(const std::string &payload) {
+  int enabled = 0;
+  if (sscanf(payload.c_str(), "%d", &enabled) != 1)
+    return;
+
+  this->silent_memory_ = (enabled != 0);
+  if (this->bin_silent_memory_ != nullptr)
+    this->bin_silent_memory_->publish_state(this->silent_memory_);
+}
+
+void XRSRadioComponent::handle_plus_wgsqm_(const std::string &payload) {
+  int enabled = 0;
+  if (sscanf(payload.c_str(), "%d", &enabled) != 1)
+    return;
+
+  this->quiet_memory_ = (enabled != 0);
+  if (this->bin_quiet_memory_ != nullptr)
+    this->bin_quiet_memory_->publish_state(this->quiet_memory_);
+}
+
+void XRSRadioComponent::handle_plus_wgssq_(const std::string &payload) {
+  int enabled = 0;
+  if (sscanf(payload.c_str(), "%d", &enabled) != 1)
+    return;
+
+  this->quiet_mode_ = (enabled != 0);
+  if (this->bin_quiet_mode_ != nullptr)
+    this->bin_quiet_mode_->publish_state(this->quiet_mode_);
+}
+
+// Attempt to parse a channel table line
+// You may need to tweak this to match the actual WGCHSQ response format.
+void XRSRadioComponent::handle_plus_wgchsq_(const std::string &payload) {
+  // Heuristic: "<zone>,<channel>,\"<name>\",..." – we only care about first 3 fields.
+  int zone = 0;
+  int ch = 0;
+  char name_buf[64] = {0};
+
+  int matched = sscanf(payload.c_str(), "%d,%d,\"%63[^\"]", &zone, &ch,
+                       name_buf);
+  if (matched >= 2) {
+    ChannelInfo info;
+    info.zone = static_cast<uint8_t>(zone);
+    info.channel = static_cast<uint8_t>(ch);
+    if (matched == 3) {
+      info.name = name_buf;
+    } else {
+      info.name.clear();
+    }
+
+    // Replace or append
+    bool replaced = false;
+    for (auto &existing : this->channel_table_) {
+      if (existing.zone == info.zone && existing.channel == info.channel) {
+        existing = info;
+        replaced = true;
+        break;
+      }
+    }
+    if (!replaced) {
+      this->channel_table_.push_back(info);
+    }
+
+    // Update channel label if this is the current channel.
+    if (info.zone == this->current_zone_ &&
+        info.channel == this->current_channel_) {
+      if (this->text_channel_label_ != nullptr) {
+        this->text_channel_label_->publish_state(
+            this->get_channel_label_(info.zone, info.channel));
+      }
+    }
+
+    // Also refresh select option lists
+    if (this->sel_zone_ != nullptr || this->sel_channel_ != nullptr) {
+      this->publish_all_state_();
     }
   }
-
-  // You can extend this with your existing XRS parser here.
 }
 
-void GmeXrsRadioComponent::publish_status_(const std::string& line) {
-  if (this->status_text_sensor_ != nullptr) {
-    this->status_text_sensor_->publish_state(line);
+// -----------------------------------------------------------------------------
+// Public control API (called from wrapper entities)
+// -----------------------------------------------------------------------------
+
+void XRSRadioComponent::set_volume(float volume) {
+  // Clamp and round to int 0..31
+  if (volume < 0.0f)
+    volume = 0.0f;
+  if (volume > 31.0f)
+    volume = 31.0f;
+
+  uint8_t vol = static_cast<uint8_t>(std::round(volume));
+  this->current_volume_ = vol;
+
+  char cmd[32];
+  snprintf(cmd, sizeof(cmd), "AT+WGAV=%u", static_cast<unsigned>(vol));
+  this->send_raw_command(cmd);
+
+  if (this->sensor_volume_ != nullptr)
+    this->sensor_volume_->publish_state(static_cast<float>(vol));
+  if (this->num_volume_ != nullptr)
+    this->num_volume_->publish_state(static_cast<float>(vol));
+}
+
+void XRSRadioComponent::set_location_mode(bool enabled) {
+  this->location_mode_ = enabled;
+  if (this->sw_location_mode_ != nullptr)
+    this->sw_location_mode_->publish_state(enabled);
+}
+
+void XRSRadioComponent::set_scan_enabled(bool enabled) {
+  char cmd[32];
+  snprintf(cmd, sizeof(cmd), "AT+WGSCAN=%d", enabled ? 1 : 0);
+  this->send_raw_command(cmd);
+}
+
+void XRSRadioComponent::set_duplex_enabled(bool enabled) {
+  char cmd[32];
+  snprintf(cmd, sizeof(cmd), "AT+WGDUP=%d", enabled ? 1 : 0);
+  this->send_raw_command(cmd);
+}
+
+void XRSRadioComponent::set_quiet_mode(bool enabled) {
+  // Quiet mode using WGSSQ=<mode>,<force>; we do not force quiet on non-quiet
+  // channels here.
+  char cmd[32];
+  snprintf(cmd, sizeof(cmd), "AT+WGSSQ=%d,0", enabled ? 1 : 0);
+  this->send_raw_command(cmd);
+}
+
+void XRSRadioComponent::set_quiet_memory(bool enabled) {
+  char cmd[32];
+  snprintf(cmd, sizeof(cmd), "AT+WGSQM=%d", enabled ? 1 : 0);
+  this->send_raw_command(cmd);
+}
+
+void XRSRadioComponent::set_silent_memory(bool enabled) {
+  char cmd[32];
+  snprintf(cmd, sizeof(cmd), "AT+WGCSM=%d", enabled ? 1 : 0);
+  this->send_raw_command(cmd);
+}
+
+void XRSRadioComponent::set_zone(uint8_t zone) {
+  char cmd[32];
+  snprintf(cmd, sizeof(cmd), "AT+WGZS=%u", static_cast<unsigned>(zone));
+  this->send_raw_command(cmd);
+}
+
+void XRSRadioComponent::set_channel(uint8_t zone, uint8_t channel) {
+  char cmd[32];
+  snprintf(cmd, sizeof(cmd), "AT+WGCHS=%u,%u", static_cast<unsigned>(zone),
+           static_cast<unsigned>(channel));
+  this->send_raw_command(cmd);
+}
+
+// Build list of "Z1", "Z2", ... from channel table.
+std::vector<std::string> XRSRadioComponent::get_zone_options() const {
+  std::vector<std::string> out;
+  for (const auto &info : this->channel_table_) {
+    char buf[8];
+    snprintf(buf, sizeof(buf), "Z%u", static_cast<unsigned>(info.zone));
+    std::string label = buf;
+    bool exists = false;
+    for (const auto &existing : out) {
+      if (existing == label) {
+        exists = true;
+        break;
+      }
+    }
+    if (!exists)
+      out.push_back(label);
   }
+  return out;
 }
 
-bool GmeXrsRadioComponent::is_client_ready_() {
-  if (this->parent() == nullptr) return false;
-  if (this->node_state != espbt::ClientState::ESTABLISHED) return false;
-  if (this->tx_char_ == nullptr) return false;
+// Build list of "Z1 / Ch 01", ordered by zone then channel.
+std::vector<std::string> XRSRadioComponent::get_channel_options() const {
+  std::vector<std::string> out;
+  // Simple insertion sort; channel_table_ is expected to be small.
+  for (const auto &info : this->channel_table_) {
+    char buf[16];
+    snprintf(buf, sizeof(buf), "Z%u / Ch %u", static_cast<unsigned>(info.zone),
+             static_cast<unsigned>(info.channel));
+    std::string label = buf;
+
+    bool exists = false;
+    for (const auto &existing : out) {
+      if (existing == label) {
+        exists = true;
+        break;
+      }
+    }
+    if (!exists)
+      out.push_back(label);
+  }
+  return out;
+}
+
+// -----------------------------------------------------------------------------
+// Low-level helpers
+// -----------------------------------------------------------------------------
+
+bool XRSRadioComponent::is_client_ready_() {
+  if (this->parent() == nullptr)
+    return false;
+  if (this->node_state != espbt::ClientState::ESTABLISHED)
+    return false;
+  if (this->tx_char_ == nullptr)
+    return false;
   return true;
 }
 
-void GmeXrsRadioComponent::ensure_paired_() {
-  if (this->parent() == nullptr) return;
-  if (this->parent()->is_paired()) return;
+void XRSRadioComponent::ensure_paired_() {
+  if (this->parent() == nullptr)
+    return;
+  if (this->parent()->is_paired())
+    return;
 
   auto err = this->parent()->pair();
   if (err != ESP_OK) {
@@ -440,18 +948,19 @@ void GmeXrsRadioComponent::ensure_paired_() {
   }
 }
 
-void GmeXrsRadioComponent::send_raw_command(const std::string& cmd) {
+void XRSRadioComponent::send_raw_command(const std::string &cmd) {
   if (!this->is_client_ready_()) {
     ESP_LOGW(TAG, "Cannot send command, BLE client not ready");
     return;
   }
 
-  if (cmd.empty()) return;
+  if (cmd.empty())
+    return;
 
-  // Ensure CRLF terminator
   std::string line = cmd;
   if (line.back() != '\n') {
-    if (line.back() != '\r') line.push_back('\r');
+    if (line.back() != '\r')
+      line.push_back('\r');
     line.push_back('\n');
   }
 
@@ -470,5 +979,102 @@ void GmeXrsRadioComponent::send_raw_command(const std::string& cmd) {
   }
 }
 
-}  // namespace gme_xrs_radio
+void XRSRadioComponent::publish_status_(const std::string &line) {
+  if (this->status_text_sensor_ != nullptr) {
+    this->status_text_sensor_->publish_state(line);
+  }
+}
+
+void XRSRadioComponent::publish_connection_state_(bool connected) {
+  this->connected_ = connected;
+  if (this->bin_connected_ != nullptr)
+    this->bin_connected_->publish_state(connected);
+}
+
+void XRSRadioComponent::publish_all_state_() {
+  // Re-publish key state to entities that care.
+  if (this->sensor_zone_ != nullptr)
+    this->sensor_zone_->publish_state(this->current_zone_);
+  if (this->sensor_channel_ != nullptr)
+    this->sensor_channel_->publish_state(this->current_channel_);
+
+  if (this->sensor_volume_ != nullptr)
+    this->sensor_volume_->publish_state(this->current_volume_);
+  if (this->num_volume_ != nullptr)
+    this->num_volume_->publish_state(this->current_volume_);
+
+  if (this->bin_scanning_ != nullptr)
+    this->bin_scanning_->publish_state(this->scanning_);
+  if (this->bin_duplex_enabled_ != nullptr)
+    this->bin_duplex_enabled_->publish_state(this->duplex_enabled_);
+  if (this->bin_silent_memory_ != nullptr)
+    this->bin_silent_memory_->publish_state(this->silent_memory_);
+  if (this->bin_quiet_memory_ != nullptr)
+    this->bin_quiet_memory_->publish_state(this->quiet_memory_);
+  if (this->bin_quiet_mode_ != nullptr)
+    this->bin_quiet_mode_->publish_state(this->quiet_mode_);
+
+  if (this->bin_power_low_ != nullptr)
+    this->bin_power_low_->publish_state(this->power_state_ == 5);
+
+  if (!this->manufacturer_.empty() && this->text_manufacturer_ != nullptr)
+    this->text_manufacturer_->publish_state(this->manufacturer_);
+  if (!this->model_.empty() && this->text_model_ != nullptr)
+    this->text_model_->publish_state(this->model_);
+  if (!this->firmware_.empty() && this->text_firmware_ != nullptr)
+    this->text_firmware_->publish_state(this->firmware_);
+  if (!this->serial_.empty() && this->text_serial_ != nullptr)
+    this->text_serial_->publish_state(this->serial_);
+
+  auto label = this->get_channel_label_(this->current_zone_,
+                                        this->current_channel_);
+  if (this->text_channel_label_ != nullptr)
+    this->text_channel_label_->publish_state(label);
+}
+
+// Resolve a human-readable channel label for the given zone/channel.
+std::string XRSRadioComponent::get_channel_label_(uint8_t zone,
+                                                  uint8_t channel) const {
+  for (const auto &info : this->channel_table_) {
+    if (info.zone == zone && info.channel == channel) {
+      if (!info.name.empty())
+        return info.name;
+      break;
+    }
+  }
+
+  char buf[32];
+  snprintf(buf, sizeof(buf), "Z%u / Ch %u", static_cast<unsigned>(zone),
+           static_cast<unsigned>(channel));
+  return std::string(buf);
+}
+
+// -----------------------------------------------------------------------------
+// Location upload
+// -----------------------------------------------------------------------------
+
+void XRSRadioComponent::send_location_update_() {
+  if (!this->location_mode_)
+    return;
+
+  if (this->latitude_sensor_ == nullptr || this->longitude_sensor_ == nullptr)
+    return;
+
+  if (!this->latitude_sensor_->has_state() ||
+      !this->longitude_sensor_->has_state())
+    return;
+
+  float lat = this->latitude_sensor_->state;
+  float lon = this->longitude_sensor_->state;
+
+  if (isnan(lat) || isnan(lon))
+    return;
+
+  // Time parameter: we don't have RTC integration here, so send "000000" (UTC).
+  char cmd[96];
+  snprintf(cmd, sizeof(cmd), "AT+WGTLOC=000000,%.6f,%.6f", lat, lon);
+  this->send_raw_command(cmd);
+}
+
+}  // namespace xrs_radio
 }  // namespace esphome
