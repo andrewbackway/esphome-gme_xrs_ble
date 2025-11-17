@@ -31,7 +31,7 @@ void GmeXrsRadioComponent::loop() {
 }
 
 void GmeXrsRadioComponent::dump_config() {
-  ESP_LOGCONFIG(TAG, "GME XRS Radio (BLE)");
+  ESP_LOGCONFIG(TAG, "GME XRS Radio (BLE) v754");
   ESP_LOGCONFIG(TAG, "  Service UUID: %s", GME_XRS_SERVICE_STR);
   if (this->parent() != nullptr) {
     ESP_LOGCONFIG(TAG, "  Bound to BLE client index: %u", this->parent()->get_connection_index());
