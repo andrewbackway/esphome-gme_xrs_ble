@@ -128,6 +128,8 @@ class XRSRadioComponent : public Component,
   void set_longitude_sensor(sensor::Sensor *sensor) { longitude_sensor_ = sensor; }
   void set_location_interval(uint32_t interval_ms) { location_interval_ms_ = interval_ms; }
 
+  
+
   // Public control API used by wrapper entities
   void set_volume(float volume);
   void set_location_mode(bool enabled);
@@ -139,6 +141,8 @@ class XRSRadioComponent : public Component,
 
   void set_zone(uint8_t zone);
   void set_channel(uint8_t zone, uint8_t channel);
+  uint8_t get_current_zone() const { return this->current_zone_; }
+  uint8_t get_current_channel() const { return this->current_channel_; }
 
   // For select entities: list of "Z1", "Z2", ... and "Z1 / Ch 01" style labels.
   std::vector<std::string> get_zone_options() const;

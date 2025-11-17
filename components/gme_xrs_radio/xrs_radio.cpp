@@ -1,4 +1,5 @@
 #include "xrs_radio.h"
+#include "select/xrs_select.h"
 
 #include "esp_gap_ble_api.h"
 #include "esp_gattc_api.h"
@@ -753,16 +754,14 @@ void XRSRadioComponent::handle_plus_wgssq_(const std::string &payload) {
     this->bin_quiet_mode_->publish_state(this->quiet_mode_);
 }
 
-// Attempt to parse a channel table line
-// You may need to tweak this to match the actual WGCHSQ response format.
 void XRSRadioComponent::handle_plus_wgchsq_(const std::string &payload) {
   // Heuristic: "<zone>,<channel>,\"<name>\",..." – we only care about first 3 fields.
   int zone = 0;
   int ch = 0;
   char name_buf[64] = {0};
 
-  int matched = sscanf(payload.c_str(), "%d,%d,\"%63[^\"]", &zone, &ch,
-                       name_buf);
+  int matched =
+      sscanf(payload.c_str(), "%d,%d,\"%63[^\"]", &zone, &ch, name_buf);
   if (matched >= 2) {
     ChannelInfo info;
     info.zone = static_cast<uint8_t>(zone);
@@ -776,7 +775,8 @@ void XRSRadioComponent::handle_plus_wgchsq_(const std::string &payload) {
     // Replace or append
     bool replaced = false;
     for (auto &existing : this->channel_table_) {
-      if (existing.zone == info.zone && existing.channel == info.channel) {
+      if (existing.zone == info.zone &&
+          existing.channel == info.channel) {
         existing = info;
         replaced = true;
         break;
@@ -795,12 +795,22 @@ void XRSRadioComponent::handle_plus_wgchsq_(const std::string &payload) {
       }
     }
 
-    // Also refresh select option lists
-    if (this->sel_zone_ != nullptr || this->sel_channel_ != nullptr) {
-      this->publish_all_state_();
+    // Refresh select options and selected values
+    if (this->sel_zone_ != nullptr) {
+      if (auto *sz =
+              dynamic_cast<XRSRadioSelect *>(this->sel_zone_)) {
+        sz->refresh_from_parent();
+      }
+    }
+    if (this->sel_channel_ != nullptr) {
+      if (auto *sc =
+              dynamic_cast<XRSRadioSelect *>(this->sel_channel_)) {
+        sc->refresh_from_parent();
+      }
     }
   }
 }
+
 
 // -----------------------------------------------------------------------------
 // Public control API (called from wrapper entities)
