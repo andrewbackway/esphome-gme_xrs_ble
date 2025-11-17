@@ -106,7 +106,7 @@ void GmeXrsRadioComponent::gattc_event_handler(esp_gattc_cb_event_t event, esp_g
       ESP_LOGI(TAG, "Disconnected from XRS (reason=0x%02X)", param->disconnect.reason);
       this->tx_char_ = nullptr;
       this->notify_handles_.clear();
-      this->node_state = espbt::ClientState::DISCONNECTED;
+      this->node_state = this->node_state = espbt::ClientState::IDLE;
       break;
     }
 
@@ -142,7 +142,7 @@ void GmeXrsRadioComponent::handle_search_complete_() {
   if (this->tx_char_ == nullptr) {
     ESP_LOGE(TAG, "No writable characteristic found for commands");
   } else {
-    ESP_LOGI(TAG, "Using handle 0x%04X as TX characteristic", this->tx_char_->get_handle());
+    ESP_LOGI(TAG, "Using handle 0x%04X as TX characteristic", this->tx_char_->handle);
   }
 
   // Register for notifications on all three notify-capable chars
@@ -156,7 +156,7 @@ void GmeXrsRadioComponent::handle_search_complete_() {
     if (chr == nullptr)
       return;
 
-    const uint16_t handle = chr->get_handle();
+    const uint16_t handle = chr->handle;
     this->notify_handles_.push_back(handle);
 
     auto err = esp_ble_gattc_register_for_notify(this->parent()->get_gattc_if(),
@@ -266,7 +266,7 @@ void GmeXrsRadioComponent::publish_status_(const std::string &line) {
   }
 }
 
-bool GmeXrsRadioComponent::is_client_ready_() const {
+bool GmeXrsRadioComponent::is_client_ready_() {
   if (this->parent() == nullptr)
     return false;
   if (this->node_state != espbt::ClientState::ESTABLISHED)
@@ -312,7 +312,7 @@ void GmeXrsRadioComponent::send_raw_command(const std::string &cmd) {
   auto err = esp_ble_gattc_write_char(
       this->parent()->get_gattc_if(),
       this->parent()->get_conn_id(),
-      this->tx_char_->get_handle(),
+      this->tx_char_->handle,
       static_cast<uint16_t>(buffer.size()),
       buffer.data(),
       ESP_GATT_WRITE_TYPE_RSP,

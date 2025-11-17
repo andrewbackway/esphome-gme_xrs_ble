@@ -44,7 +44,7 @@ class GmeXrsRadioComponent : public Component, public ble_client::BLEClientNode 
   void handle_search_complete_();
   void handle_notify_(uint16_t handle, const uint8_t *data, uint16_t length);
   void ensure_paired_();
-  bool is_client_ready_() const;
+  bool is_client_ready_();
 
   // RX line handling
   void process_rx_buffer_();
