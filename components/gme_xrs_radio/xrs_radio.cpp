@@ -433,12 +433,10 @@ void XRSRadioComponent::handle_search_complete_() {
   this->send_raw_command("AT+GMR?");
   this->send_raw_command("AT+GSN?");
   this->send_raw_command("AT+GOI?");
-  this->send_raw_command("AT+WGZL"); // list all zones
-  this->send_raw_command("AT+WGCHL"); // list all channels
-
-  //  Ask for the current zone/channel so we initialise to the
-  //    real radio state (this should trigger a +WGCHS: z,ch reply)
-  this->send_raw_command("AT+WGCHS?");
+  this->send_raw_command("AT+WGAV"); // try and get volume? 
+  // disabled to reduce memory consumption
+  //this->send_raw_command("AT+WGZL"); // list all zones
+  //this->send_raw_command("AT+WGCHL"); // list all channels
 
   if (this->text_power_state_ != nullptr)
     this->text_power_state_->publish_state("Running");
