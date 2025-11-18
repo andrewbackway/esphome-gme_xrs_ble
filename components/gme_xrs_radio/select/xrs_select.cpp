@@ -33,7 +33,7 @@ void XRSRadioSelect::update_options_() {
         for (uint8_t z = 1; z <= 8; z++) {
           char buf[8];
           snprintf(buf, sizeof(buf), "Z%u", static_cast<unsigned>(z));
-          options.emplace_back(buf);
+          options_.emplace_back(buf);
         }
       }
       break;
@@ -46,7 +46,7 @@ void XRSRadioSelect::update_options_() {
         for (uint8_t ch = 1; ch <= 80; ch++) {
           char buf[8];
           snprintf(buf, sizeof(buf), "%u", static_cast<unsigned>(ch));
-          options.emplace_back(buf);
+          options_.emplace_back(buf);
         }
         break;
       }
