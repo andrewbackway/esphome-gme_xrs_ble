@@ -553,6 +553,10 @@ void XRSRadioComponent::on_plus_line(const std::string& name,
     this->handle_plus_wgav_(payload);
     return;
   }
+  if (name == "WGZS") {
+    this->handle_plus_wgzs_(payload);
+    return;
+  }
 
   // Fallback: update "last message" text sensor
   if (this->text_last_message_ != nullptr) {
@@ -581,6 +585,17 @@ void XRSRadioComponent::on_unknown_line(const std::string& line) {
 // -----------------------------------------------------------------------------
 // AT "+" line handlers
 // -----------------------------------------------------------------------------
+
+// zone report
+void XRSRadioComponent::handle_plus_wgzs_(const std::string& payload) {
+  int zone = 0;
+  if (sscanf(payload.c_str(), "%d", &zone) == 1) {
+    this->current_zone_ = static_cast<uint8_t>(zone);
+
+    // Zone sensor is no longer exposed; keep selects in sync instead.
+    if (this->sel_zone_ != nullptr) this->sel_zone_->refresh_from_parent();
+  }
+}
 
 // Volume report
 void XRSRadioComponent::handle_plus_wgav_(const std::string& payload) {
