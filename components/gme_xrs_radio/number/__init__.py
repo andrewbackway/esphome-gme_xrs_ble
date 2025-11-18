@@ -13,12 +13,12 @@ from esphome.const import (
 from .. import (
     XRSRadioComponent,
     XRSNumberType,
-    xrs_radio_ns,
+    gme_xrs_radio_ns,
 )
 
 CONF_GME_XRS_ID = "gme_xrs_id"
 
-XRSRadioNumber = xrs_radio_ns.class_(
+XRSRadioNumber = gme_xrs_radio_ns.class_(
     "XRSRadioNumber", number.Number, cg.Component
 )
 

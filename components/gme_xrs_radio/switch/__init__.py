@@ -7,12 +7,12 @@ from esphome.const import CONF_ID, CONF_TYPE
 from .. import (
     XRSRadioComponent,
     XRSSwitchType,
-    xrs_radio_ns,
+    gme_xrs_radio_ns,
 )
 
 CONF_GME_XRS_ID = "gme_xrs_id"
 
-XRSRadioSwitch = xrs_radio_ns.class_(
+XRSRadioSwitch = gme_xrs_radio_ns.class_(
     "XRSRadioSwitch", switch.Switch, cg.Component
 )
 
