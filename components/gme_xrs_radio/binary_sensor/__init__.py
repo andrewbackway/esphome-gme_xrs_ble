@@ -23,7 +23,9 @@ XRSBinarySensorTypeMap = {
     "quiet_mode": XRSBinarySensorType.XRS_BIN_QUIET_MODE,
 }
 
-CONFIG_SCHEMA = binary_sensor.binary_sensor_schema().extend(
+CONFIG_SCHEMA = binary_sensor.binary_sensor_schema(
+    binary_sensor.BinarySensor
+).extend(
     {
         cv.GenerateID(CONF_ID): cv.declare_id(binary_sensor.BinarySensor),
         cv.GenerateID(CONF_XRS_ID): cv.use_id(XRSRadioComponent),

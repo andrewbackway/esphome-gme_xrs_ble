@@ -20,7 +20,7 @@ XRSSwitchTypeMap = {
     "silent_memory": XRSSwitchType.XRS_SWITCH_SILENT_MEMORY,
 }
 
-CONFIG_SCHEMA = switch.switch_schema().extend(
+CONFIG_SCHEMA = switch.switch_schema(switch.Switch).extend(
     {
         cv.GenerateID(CONF_ID): cv.declare_id(switch.Switch),
         cv.GenerateID(CONF_XRS_ID): cv.use_id(XRSRadioComponent),

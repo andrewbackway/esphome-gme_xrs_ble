@@ -8,8 +8,9 @@ from .. import XRSRadioComponent, XRSSelectType, xrs_radio_ns
 
 CONF_XRS_ID = "xrs_id"
 
-# C++ class: class XRSRadioSelect : public select::Select, public Component
-XRSRadioSelect = xrs_radio_ns.class_("XRSRadioSelect", select_base.Select, cg.Component)
+XRSRadioSelect = xrs_radio_ns.class_(
+    "XRSRadioSelect", select_base.Select, cg.Component
+)
 
 XRS_RADIO_SELECT_TYPES = {
     "zone": XRSSelectType.XRS_SELECT_ZONE,
@@ -29,8 +30,8 @@ async def to_code(config):
     parent = await cg.get_variable(config[CONF_XRS_ID])
     type_enum = XRS_RADIO_SELECT_TYPES[config[CONF_TYPE]]
 
-    # In 2025.10+ new_select() wants 'options', but we pass an empty list
-    # because options are provided dynamically from C++.
+    # new_select in recent ESPHome wants options kwarg; we give [] and let C++
+    # supply options dynamically via get_traits()/refresh_from_parent().
     var = await select_base.new_select(config, options=[])
 
     cg.add(var.set_parent(parent))

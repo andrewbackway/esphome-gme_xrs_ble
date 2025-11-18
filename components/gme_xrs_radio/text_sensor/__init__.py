@@ -22,7 +22,7 @@ XRSTextSensorTypeMap = {
     "channel_label": XRSTextSensorType.XRS_TEXT_CHANNEL_LABEL,
 }
 
-CONFIG_SCHEMA = text_sensor.text_sensor_schema().extend(
+CONFIG_SCHEMA = text_sensor.text_sensor_schema(text_sensor.TextSensor).extend(
     {
         cv.GenerateID(CONF_ID): cv.declare_id(text_sensor.TextSensor),
         cv.GenerateID(CONF_XRS_ID): cv.use_id(XRSRadioComponent),

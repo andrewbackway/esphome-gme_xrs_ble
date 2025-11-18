@@ -5,7 +5,6 @@ from esphome.components import sensor
 from esphome.const import CONF_ID, CONF_TYPE
 
 from .. import (
-    xrs_radio_ns,
     XRSRadioComponent,
     XRSNumericSensorType,
 )
@@ -19,7 +18,7 @@ XRSNumericSensorTypeMap = {
     "ptt_timer": XRSNumericSensorType.XRS_SENSOR_PTT_TIMER,
 }
 
-CONFIG_SCHEMA = sensor.sensor_schema().extend(
+CONFIG_SCHEMA = sensor.sensor_schema(sensor.Sensor).extend(
     {
         cv.GenerateID(CONF_ID): cv.declare_id(sensor.Sensor),
         cv.GenerateID(CONF_XRS_ID): cv.use_id(XRSRadioComponent),
