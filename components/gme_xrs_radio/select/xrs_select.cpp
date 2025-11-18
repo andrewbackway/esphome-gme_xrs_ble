@@ -22,11 +22,14 @@ void XRSRadioSelect::dump_config() {
 void XRSRadioSelect::update_options_() {
   if (this->parent_ == nullptr) return;
 
+  this->options_.clear();
   std::vector<std::string> opts;
 
   switch (this->type_) {
     case XRS_SELECT_ZONE: {
+      // Try to build from channel table
       opts = this->parent_->get_zone_options();
+
       // Fallback in case channel table is still empty: just synthesise Z1
       if (opts.empty()) {
         // Z1..Z8
@@ -40,8 +43,10 @@ void XRSRadioSelect::update_options_() {
     }
 
     case XRS_SELECT_CHANNEL: {
+      // Channels for current zone only
       opts = this->parent_->get_channel_options();
-      // Same fallback: current channel number only
+
+      // Fallback: generic 1..80 channel list
       if (opts.empty()) {
         for (uint8_t ch = 1; ch <= 80; ch++) {
           char buf[8];
@@ -54,12 +59,12 @@ void XRSRadioSelect::update_options_() {
       default:
         break;
     }
-
-      this->options_.assign(opts.begin(), opts.end());
-
-      // CRITICAL: teach the base class what options are valid
-      this->traits.set_options(this->options_);
   }
+
+  this->options_.assign(opts.begin(), opts.end());
+
+  // CRITICAL: teach the base class what options are valid
+  this->traits.set_options(this->options_);
 }
 
 void XRSRadioSelect::refresh_from_parent() {
