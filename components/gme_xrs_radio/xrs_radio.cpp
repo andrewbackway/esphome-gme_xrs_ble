@@ -602,7 +602,6 @@ void XRSRadioComponent::handle_plus_wgchs_(const std::string& payload) {
     this->current_zone_ = static_cast<uint8_t>(zone);
     this->current_channel_ = static_cast<uint8_t>(ch);
 
-    if (this->sensor_zone_ != nullptr) this->sensor_zone_->publish_state(zone);
     if (this->sensor_channel_ != nullptr)
       this->sensor_channel_->publish_state(ch);
 
@@ -612,7 +611,8 @@ void XRSRadioComponent::handle_plus_wgchs_(const std::string& payload) {
       this->text_channel_label_->publish_state(label);
 
     // keep selects in sync if present
-    if (this->sel_zone_ != nullptr) this->sel_zone_->refresh_from_parent();
+    if (this->sel_zone_ != nullptr)
+      this->sel_zone_->refresh_from_parent();
     if (this->sel_channel_ != nullptr)
       this->sel_channel_->refresh_from_parent();
   }
@@ -622,9 +622,15 @@ void XRSRadioComponent::handle_plus_whzs_(const std::string& payload) {
   int zone = 0;
   if (sscanf(payload.c_str(), "%d", &zone) == 1) {
     this->current_zone_ = static_cast<uint8_t>(zone);
-    if (this->sensor_zone_ != nullptr) this->sensor_zone_->publish_state(zone);
+
+    // Zone sensor is no longer exposed; keep selects in sync instead.
+    if (this->sel_zone_ != nullptr)
+      this->sel_zone_->refresh_from_parent();
+    if (this->sel_channel_ != nullptr)
+      this->sel_channel_->refresh_from_parent();
   }
 }
+
 
 void XRSRadioComponent::handle_plus_wgptt_(const std::string& payload) {
   int state = 0;
@@ -713,6 +719,9 @@ void XRSRadioComponent::handle_plus_wgscan_(const std::string& payload) {
   if (sscanf(payload.c_str(), "%d", &enabled) != 1) return;
 
   this->scanning_ = (enabled != 0);
+
+  if (this->sw_scan_ != nullptr)
+    this->sw_scan_->publish_state(this->scanning_);
   if (this->bin_scanning_ != nullptr)
     this->bin_scanning_->publish_state(this->scanning_);
 }
@@ -722,6 +731,9 @@ void XRSRadioComponent::handle_plus_wgdup_(const std::string& payload) {
   if (sscanf(payload.c_str(), "%d", &enabled) != 1) return;
 
   this->duplex_enabled_ = (enabled != 0);
+
+  if (this->sw_duplex_ != nullptr)
+    this->sw_duplex_->publish_state(this->duplex_enabled_);
   if (this->bin_duplex_enabled_ != nullptr)
     this->bin_duplex_enabled_->publish_state(this->duplex_enabled_);
 }
@@ -731,6 +743,9 @@ void XRSRadioComponent::handle_plus_wgcsm_(const std::string& payload) {
   if (sscanf(payload.c_str(), "%d", &enabled) != 1) return;
 
   this->silent_memory_ = (enabled != 0);
+
+  if (this->sw_silent_memory_ != nullptr)
+    this->sw_silent_memory_->publish_state(this->silent_memory_);
   if (this->bin_silent_memory_ != nullptr)
     this->bin_silent_memory_->publish_state(this->silent_memory_);
 }
@@ -740,15 +755,22 @@ void XRSRadioComponent::handle_plus_wgsqm_(const std::string& payload) {
   if (sscanf(payload.c_str(), "%d", &enabled) != 1) return;
 
   this->quiet_memory_ = (enabled != 0);
+
+  if (this->sw_quiet_memory_ != nullptr)
+    this->sw_quiet_memory_->publish_state(this->quiet_memory_);
   if (this->bin_quiet_memory_ != nullptr)
     this->bin_quiet_memory_->publish_state(this->quiet_memory_);
 }
 
+// quiet mode
 void XRSRadioComponent::handle_plus_wgssq_(const std::string& payload) {
   int enabled = 0;
   if (sscanf(payload.c_str(), "%d", &enabled) != 1) return;
 
   this->quiet_mode_ = (enabled != 0);
+
+  if (this->sw_quiet_mode_ != nullptr)
+    this->sw_quiet_mode_->publish_state(this->quiet_mode_);
   if (this->bin_quiet_mode_ != nullptr)
     this->bin_quiet_mode_->publish_state(this->quiet_mode_);
 }
@@ -888,28 +910,33 @@ std::vector<std::string> XRSRadioComponent::get_zone_options() const {
   return out;
 }
 
-// Build list of "Z1 / Ch 01", ordered by zone then channel.
+// Build list of channel numbers for the current zone only.
 std::vector<std::string> XRSRadioComponent::get_channel_options() const {
   std::vector<std::string> out;
-  // Simple insertion sort; channel_table_ is expected to be small.
-  for (const auto& info : this->channel_table_) {
-    char buf[16];
-    snprintf(buf, sizeof(buf), "Z%u / Ch %u", static_cast<unsigned>(info.zone),
-             static_cast<unsigned>(info.channel));
+  uint8_t zone = this->current_zone_;
+
+  // Simple insertion de-dup; channel_table_ is expected to be small.
+  for (const auto &info : this->channel_table_) {
+    if (info.zone != zone)
+      continue;
+
+    char buf[8];
+    std::snprintf(buf, sizeof(buf), "%u",
+                  static_cast<unsigned>(info.channel));
     std::string label = buf;
 
     bool exists = false;
-    for (const auto& existing : out) {
+    for (const auto &existing : out) {
       if (existing == label) {
         exists = true;
         break;
       }
     }
-    if (!exists) out.push_back(label);
+    if (!exists)
+      out.push_back(label);
   }
   return out;
 }
-
 // -----------------------------------------------------------------------------
 // Low-level helpers
 // -----------------------------------------------------------------------------
@@ -976,16 +1003,25 @@ void XRSRadioComponent::publish_connection_state_(bool connected) {
 
 void XRSRadioComponent::publish_all_state_() {
   // Re-publish key state to entities that care.
-  if (this->sensor_zone_ != nullptr)
-    this->sensor_zone_->publish_state(this->current_zone_);
   if (this->sensor_channel_ != nullptr)
     this->sensor_channel_->publish_state(this->current_channel_);
 
-  if (this->sensor_volume_ != nullptr)
-    this->sensor_volume_->publish_state(this->current_volume_);
   if (this->number_volume_ != nullptr)
     this->number_volume_->publish_state(this->current_volume_);
 
+  // Switch-based booleans
+  if (this->sw_scan_ != nullptr)
+    this->sw_scan_->publish_state(this->scanning_);
+  if (this->sw_duplex_ != nullptr)
+    this->sw_duplex_->publish_state(this->duplex_enabled_);
+  if (this->sw_silent_memory_ != nullptr)
+    this->sw_silent_memory_->publish_state(this->silent_memory_);
+  if (this->sw_quiet_memory_ != nullptr)
+    this->sw_quiet_memory_->publish_state(this->quiet_memory_);
+  if (this->sw_quiet_mode_ != nullptr)
+    this->sw_quiet_mode_->publish_state(this->quiet_mode_);
+
+  // Legacy binary_sensor mirrors (only present if user still configured them)
   if (this->bin_scanning_ != nullptr)
     this->bin_scanning_->publish_state(this->scanning_);
   if (this->bin_duplex_enabled_ != nullptr)
@@ -996,19 +1032,7 @@ void XRSRadioComponent::publish_all_state_() {
     this->bin_quiet_memory_->publish_state(this->quiet_memory_);
   if (this->bin_quiet_mode_ != nullptr)
     this->bin_quiet_mode_->publish_state(this->quiet_mode_);
-
-  if (this->bin_power_low_ != nullptr)
-    this->bin_power_low_->publish_state(this->power_state_ == 5);
-
-  if (!this->manufacturer_.empty() && this->text_manufacturer_ != nullptr)
-    this->text_manufacturer_->publish_state(this->manufacturer_);
-  if (!this->model_.empty() && this->text_model_ != nullptr)
-    this->text_model_->publish_state(this->model_);
-  if (!this->firmware_.empty() && this->text_firmware_ != nullptr)
-    this->text_firmware_->publish_state(this->firmware_);
-  if (!this->serial_.empty() && this->text_serial_ != nullptr)
-    this->text_serial_->publish_state(this->serial_);
-
+    
   auto label =
       this->get_channel_label_(this->current_zone_, this->current_channel_);
   if (this->text_channel_label_ != nullptr)

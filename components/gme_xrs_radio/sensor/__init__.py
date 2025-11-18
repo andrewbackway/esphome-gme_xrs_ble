@@ -12,8 +12,6 @@ from .. import (
 CONF_XRS_ID = "gme_xrs_id"
 
 XRSNumericSensorTypeMap = {
-    "channel": XRSNumericSensorType.XRS_SENSOR_CHANNEL,
-    "zone": XRSNumericSensorType.XRS_SENSOR_ZONE,
     "volume": XRSNumericSensorType.XRS_SENSOR_VOLUME,
     "ptt_timer": XRSNumericSensorType.XRS_SENSOR_PTT_TIMER,
 }

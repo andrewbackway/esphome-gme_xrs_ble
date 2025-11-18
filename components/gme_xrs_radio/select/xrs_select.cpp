@@ -16,7 +16,7 @@ void XRSRadioSelect::update_options_() {
   switch (this->type_) {
     case XRS_SELECT_ZONE: {
       opts = this->parent_->get_zone_options();
-      // If we don't yet have a channel table, at least expose the current zone
+      // Fallback in case channel table is still empty: just synthesise Z1
       if (opts.empty()) {
         char buf[8];
         std::snprintf(buf, sizeof(buf), "Z%u",
@@ -28,11 +28,10 @@ void XRSRadioSelect::update_options_() {
 
     case XRS_SELECT_CHANNEL: {
       opts = this->parent_->get_channel_options();
-      // Same fallback: current zone/channel only
+      // Same fallback: current channel number only
       if (opts.empty()) {
-        char buf[32];
-        std::snprintf(buf, sizeof(buf), "Z%u / Ch %u",
-                      static_cast<unsigned>(this->parent_->get_current_zone()),
+        char buf[16];
+        std::snprintf(buf, sizeof(buf), "%u",
                       static_cast<unsigned>(this->parent_->get_current_channel()));
         opts.emplace_back(buf);
       }
@@ -67,9 +66,8 @@ void XRSRadioSelect::refresh_from_parent() {
     }
 
     case XRS_SELECT_CHANNEL: {
-      unsigned zone = this->parent_->get_current_zone();
       unsigned ch = this->parent_->get_current_channel();
-      std::snprintf(buf, sizeof(buf), "Z%u / Ch %u", zone, ch);
+      std::snprintf(buf, sizeof(buf), "%u", ch);
       this->publish_state(buf);
       break;
     }
@@ -94,12 +92,11 @@ void XRSRadioSelect::control(const std::string &value) {
     } else {
       ESP_LOGW(TAG, "Zone select: could not parse '%s'", value.c_str());
     }
-
   } else if (this->type_ == XRS_SELECT_CHANNEL) {
-    // Value looks like "Z1 / Ch 46"
-    unsigned zone = 0;
+    // Value is the channel number within the current zone, e.g. "46".
     unsigned ch = 0;
-    if (std::sscanf(value.c_str(), "Z%u / Ch %u", &zone, &ch) == 2) {
+    if (std::sscanf(value.c_str(), "%u", &ch) == 1) {
+      unsigned zone = this->parent_->get_current_zone();
       this->parent_->set_channel(static_cast<uint8_t>(zone),
                                  static_cast<uint8_t>(ch));
       this->publish_state(value);
