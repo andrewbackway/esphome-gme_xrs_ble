@@ -37,6 +37,7 @@ namespace esp32_ble_client = esphome::esp32_ble_client;
 // Enums describing the per-entity "type" from YAML
 // -----------------------------------------------------------------------------
 
+
 enum XRSNumericSensorType {
   XRS_SENSOR_CHANNEL,
   XRS_SENSOR_ZONE,
@@ -67,11 +68,11 @@ enum XRSTextSensorType {
   XRS_TEXT_CHANNEL_LABEL,
 };
 
-enum XRSNumberType {
+enum XRSNumberType : uint8_t {
   XRS_NUMBER_VOLUME,
 };
 
-enum XRSSwitchType {
+enum XRSSwitchType : uint8_t {
   XRS_SWITCH_LOCATION_MODE,
   XRS_SWITCH_SCAN,
   XRS_SWITCH_DUPLEX,
@@ -80,7 +81,7 @@ enum XRSSwitchType {
   XRS_SWITCH_SILENT_MEMORY,
 };
 
-enum XRSSelectType : uint8_t {
+enum class XRSSelectType : uint8_t {
   XRS_SELECT_ZONE,
   XRS_SELECT_CHANNEL,
 };
@@ -275,7 +276,7 @@ class XRSRadioComponent : public Component,
   text_sensor::TextSensor* text_channel_label_{nullptr};
   text_sensor::TextSensor* status_text_sensor_{nullptr};
 
-  number::Number* num_volume_{nullptr};
+  number::Number* number_volume_ {nullptr};
 
   XRSRadioSwitch *sw_location_mode_{nullptr};
   XRSRadioSwitch *sw_scan_{nullptr};

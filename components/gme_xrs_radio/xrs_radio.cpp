@@ -814,7 +814,7 @@ void XRSRadioComponent::set_volume(uint8_t volume) {
 
   char cmd[32];
   snprintf(cmd, sizeof(cmd), "AT+WVOL=%u", static_cast<unsigned>(volume));
-  this->send_at_command_(cmd);  // use whatever helper you already have
+  this->send_raw_command(cmd);  // use the existing BLE write helper
 }
 
 void XRSRadioComponent::set_location_mode(bool enabled) {

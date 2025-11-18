@@ -10,7 +10,7 @@ namespace esphome {
 namespace gme_xrs_radio {
 
 class XRSRadioComponent;
-enum class XRSSelectType;  // forward declaration of the enum from xrs_radio.h
+enum class XRSSelectType: uint8_t; // forward declaration of the enum from xrs_radio.h
 
 class XRSRadioSelect : public select::Select, public Component {
  public:
@@ -35,5 +35,5 @@ class XRSRadioSelect : public select::Select, public Component {
   std::vector<std::string> options_;
 };
 
-}  // namespace xrs_radio
+}  // namespace gme_xrs_radio
 }  // namespace esphome
