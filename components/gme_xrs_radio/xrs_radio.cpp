@@ -982,8 +982,8 @@ void XRSRadioComponent::publish_all_state_() {
 
   if (this->sensor_volume_ != nullptr)
     this->sensor_volume_->publish_state(this->current_volume_);
-  if (this->num_volume_ != nullptr)
-    this->num_volume_->publish_state(this->current_volume_);
+  if (this->number_volume_ != nullptr)
+    this->number_volume_->publish_state(this->current_volume_);
 
   if (this->bin_scanning_ != nullptr)
     this->bin_scanning_->publish_state(this->scanning_);
