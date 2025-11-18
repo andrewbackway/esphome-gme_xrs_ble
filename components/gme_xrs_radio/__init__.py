@@ -9,6 +9,7 @@ from esphome.components.ble_client import CONF_BLE_CLIENT_ID
 CONF_LATITUDE = "latitude"
 CONF_LONGITUDE = "longitude"
 CONF_LOCATION_INTERVAL = "location_interval"
+CONF_MESSAGE = "message"
 
 gme_xrs_radio_ns = cg.esphome_ns.namespace("gme_xrs_radio")
 
@@ -35,6 +36,7 @@ CONFIG_SCHEMA = (
             cv.Optional(CONF_LATITUDE): cv.use_id(sensor.Sensor),
             cv.Optional(CONF_LONGITUDE): cv.use_id(sensor.Sensor),
             cv.Optional(CONF_LOCATION_INTERVAL, default="60s"): cv.positive_time_period_milliseconds,
+            cv.Optional(CONF_MESSAGE): cv.use_id(text_sensor.TextSensor),
         }
     )
     .extend(cv.COMPONENT_SCHEMA)
@@ -57,6 +59,11 @@ async def to_code(config):
     if CONF_LONGITUDE in config:
         lon = await cg.get_variable(config[CONF_LONGITUDE])
         cg.add(var.set_longitude_sensor(lon))
+
+    # optional message text sensor (for WGTMSG)
+    if CONF_MESSAGE in config:
+        msg = await cg.get_variable(config[CONF_MESSAGE])
+        cg.add(var.set_message_sensor(msg))
 
     # Location update interval (ms)
     cg.add(var.set_location_interval(config[CONF_LOCATION_INTERVAL]))

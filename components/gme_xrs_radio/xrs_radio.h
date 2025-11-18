@@ -43,6 +43,9 @@ enum XRSNumericSensorType {
   XRS_SENSOR_ZONE,
   XRS_SENSOR_VOLUME,
   XRS_SENSOR_PTT_TIMER,
+  XRS_SENSOR_REMOTE_SEQ,
+  XRS_SENSOR_REMOTE_LATITUDE,
+  XRS_SENSOR_REMOTE_LONGITUDE,
 };
 
 enum XRSBinarySensorType {
@@ -66,6 +69,9 @@ enum XRSTextSensorType {
   XRS_TEXT_POWER_STATE,
   XRS_TEXT_PTT_STATE,
   XRS_TEXT_CHANNEL_LABEL,
+  XRS_TEXT_REMOTE_UID,
+  XRS_TEXT_REMOTE_MESSAGE,
+  XRS_TEXT_REMOTE_TIME,
 };
 
 enum XRSNumberType : uint8_t {
@@ -142,6 +148,23 @@ class XRSRadioComponent : public Component,
   void set_location_interval(uint32_t interval_ms) {
     location_interval_ms_ = interval_ms;
   }
+  void set_latitude_sensor(sensor::Sensor* sensor) {
+    latitude_sensor_ = sensor;
+  }
+  void set_longitude_sensor(sensor::Sensor* sensor) {
+    longitude_sensor_ = sensor;
+  }
+  void set_location_interval(uint32_t interval_ms) {
+    location_interval_ms_ = interval_ms;
+  }
+
+  //optional message source (text sensor) for WGTMSG payload
+  void set_message_sensor(text_sensor::TextSensor* sensor) {
+    message_sensor_ = sensor;
+  }
+
+  // manual "send location + message now" for the button
+  void send_location_with_message();
 
   // Public control API used by wrapper entities
   void set_volume(uint8_t volume);
@@ -200,6 +223,8 @@ class XRSRadioComponent : public Component,
   void handle_plus_gmm_(const std::string& payload);
   void handle_plus_gmr_(const std::string& payload);
   void handle_plus_gsn_(const std::string& payload);
+  void handle_plus_wgrmloc_(const std::string& payload);
+
 
   // Location upload
   void send_location_update_();
@@ -255,7 +280,10 @@ class XRSRadioComponent : public Component,
   sensor::Sensor* sensor_zone_{nullptr};
   sensor::Sensor* sensor_volume_{nullptr};
   sensor::Sensor* sensor_ptt_timer_{nullptr};
-
+  sensor::Sensor* sensor_remote_seq_{nullptr};
+  sensor::Sensor* sensor_remote_latitude_{nullptr};
+  sensor::Sensor* sensor_remote_longitude_{nullptr};
+  
   binary_sensor::BinarySensor* bin_connected_{nullptr};
   binary_sensor::BinarySensor* bin_ptt_active_{nullptr};
   binary_sensor::BinarySensor* bin_ptt_data_{nullptr};
@@ -275,6 +303,15 @@ class XRSRadioComponent : public Component,
   text_sensor::TextSensor* text_ptt_state_{nullptr};
   text_sensor::TextSensor* text_channel_label_{nullptr};
   text_sensor::TextSensor* status_text_sensor_{nullptr};
+  text_sensor::TextSensor* message_sensor_{nullptr};
+
+  // Remote location sensors (last event only)
+  text_sensor::TextSensor* text_remote_uid_{nullptr};
+  text_sensor::TextSensor* text_remote_message_{nullptr};
+  text_sensor::TextSensor* text_remote_time_{nullptr};
+
+  uint32_t remote_seq_counter_{0};
+
 
   number::Number* number_volume_ {nullptr};
 

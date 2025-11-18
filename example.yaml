@@ -14,7 +14,6 @@ wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
 
-api:
 ota:
 
 esp32_ble_tracker:
@@ -31,6 +30,4 @@ gme_xrs_radio:
   - id: gme_xrs_radio1
     ble_client_id: gme_xrs_ble_client
 
-    # Optional diagnostic text sensor: last raw line from radio
-    status_text:
-      name: "XRS Raw Line"
+

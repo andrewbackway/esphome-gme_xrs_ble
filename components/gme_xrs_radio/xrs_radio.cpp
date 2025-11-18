@@ -122,6 +122,15 @@ void XRSRadioComponent::register_numeric_sensor(XRSNumericSensorType type,
     case XRS_SENSOR_PTT_TIMER:
       this->sensor_ptt_timer_ = sensor;
       break;
+    case XRS_SENSOR_REMOTE_SEQ:
+      this->sensor_remote_seq_ = sensor;
+      break;
+    case XRS_SENSOR_REMOTE_LATITUDE:
+      this->sensor_remote_latitude_ = sensor;
+      break;
+    case XRS_SENSOR_REMOTE_LONGITUDE:
+      this->sensor_remote_longitude_ = sensor;
+      break;
   }
 }
 
@@ -184,6 +193,15 @@ void XRSRadioComponent::register_text_sensor(XRSTextSensorType type,
       break;
     case XRS_TEXT_CHANNEL_LABEL:
       this->text_channel_label_ = sensor;
+      break;
+    case XRS_TEXT_REMOTE_UID:
+      this->text_remote_uid_ = sensor;
+      break;
+    case XRS_TEXT_REMOTE_MESSAGE:
+      this->text_remote_message_ = sensor;
+      break;
+    case XRS_TEXT_REMOTE_TIME:
+      this->text_remote_time_ = sensor;
       break;
   }
 }
@@ -542,6 +560,10 @@ void XRSRadioComponent::on_plus_line(const std::string& name,
     this->handle_plus_wgchsq_(payload);
     return;
   }
+  if (name == "WGRMLOC") {
+    this->handle_plus_wgrmloc_(payload);
+    return;
+  }
 
   // Fallback: update "last message" text sensor
   if (this->text_last_message_ != nullptr) {
@@ -774,6 +796,121 @@ void XRSRadioComponent::handle_plus_wgssq_(const std::string& payload) {
   if (this->bin_quiet_mode_ != nullptr)
     this->bin_quiet_mode_->publish_state(this->quiet_mode_);
 }
+
+void XRSRadioComponent::handle_plus_wgrmloc_(const std::string& payload) {
+  // Expected payload:
+  // <time>,<fix>,<lat>,<lon>,"<uid>","<msg>"
+  // We only care about time, lat, lon and msg; UID comes from msg pattern.
+
+  // Parse first four comma-separated fields
+  auto p1 = payload.find(',');
+  if (p1 == std::string::npos) return;
+  auto p2 = payload.find(',', p1 + 1);
+  if (p2 == std::string::npos) return;
+  auto p3 = payload.find(',', p2 + 1);
+  if (p3 == std::string::npos) return;
+  auto p4 = payload.find(',', p3 + 1);
+  if (p4 == std::string::npos) return;
+
+  std::string time_str = payload.substr(0, p1);
+  std::string fix_str = payload.substr(p1 + 1, p2 - p1 - 1);
+  std::string lat_str = payload.substr(p2 + 1, p3 - p2 - 1);
+  std::string lon_str = payload.substr(p3 + 1, p4 - p3 - 1);
+
+  // Basic numeric parsing
+  (void)fix_str;  // fix not currently used
+  float lat = strtof(lat_str.c_str(), nullptr);
+  float lon = strtof(lon_str.c_str(), nullptr);
+
+  // Remaining part: "uid","msg" or similar
+  std::string uid_field;
+  std::string msg_field;
+
+  if (p4 + 1 < payload.size()) {
+    std::string rest = payload.substr(p4 + 1);
+
+    // Trim leading whitespace
+    auto first_non = rest.find_first_not_of(" \t");
+    if (first_non != std::string::npos)
+      rest.erase(0, first_non);
+
+    if (!rest.empty() && rest[0] == '"') {
+      // UID in quotes
+      auto end_uid = rest.find('"', 1);
+      if (end_uid != std::string::npos) {
+        uid_field = rest.substr(1, end_uid - 1);
+
+        auto comma2 = rest.find(',', end_uid + 1);
+        if (comma2 != std::string::npos) {
+          std::string rest_msg = rest.substr(comma2 + 1);
+
+          auto first_non2 = rest_msg.find_first_not_of(" \t");
+          if (first_non2 != std::string::npos)
+            rest_msg.erase(0, first_non2);
+
+          if (!rest_msg.empty() && rest_msg[0] == '"') {
+            auto end_msg = rest_msg.find('"', 1);
+            if (end_msg != std::string::npos)
+              msg_field = rest_msg.substr(1, end_msg - 1);
+          } else {
+            msg_field = rest_msg;
+          }
+        }
+      }
+    } else {
+      // No quotes – treat remainder as message blob
+      msg_field = rest;
+    }
+  }
+
+  // Derive remote_uid and remote_message from msg_field:
+  //  - If msg contains '@', use "@UID#Message" convention:
+  //      remote_uid = UID
+  //      remote_message = text after '#', or "" if no '#'
+  //  - If there is NO '@', remote_uid stays blank and the whole fragment
+  //    is dumped into remote_message (your requested behaviour).
+  std::string remote_uid;
+  std::string remote_message;
+
+  if (!msg_field.empty()) {
+    auto at_pos = msg_field.find('@');
+    if (at_pos != std::string::npos) {
+      auto hash_pos = msg_field.find('#', at_pos + 1);
+      if (hash_pos != std::string::npos) {
+        remote_uid = msg_field.substr(at_pos + 1, hash_pos - (at_pos + 1));
+        remote_message = msg_field.substr(hash_pos + 1);
+      } else {
+        remote_uid = msg_field.substr(at_pos + 1);
+        remote_message.clear();
+      }
+    } else {
+      // No '@' – dump entire fragment into the remote message
+      remote_message = msg_field;
+    }
+  }
+
+  // Publish to sensors
+  this->remote_seq_counter_++;
+
+  if (this->sensor_remote_seq_ != nullptr)
+    this->sensor_remote_seq_->publish_state(this->remote_seq_counter_);
+
+  if (!std::isnan(lat) && this->sensor_remote_latitude_ != nullptr)
+    this->sensor_remote_latitude_->publish_state(lat);
+
+  if (!std::isnan(lon) && this->sensor_remote_longitude_ != nullptr)
+    this->sensor_remote_longitude_->publish_state(lon);
+
+  if (this->text_remote_time_ != nullptr)
+    this->text_remote_time_->publish_state(time_str);
+
+  if (this->text_remote_uid_ != nullptr)
+    this->text_remote_uid_->publish_state(remote_uid);
+
+  if (this->text_remote_message_ != nullptr)
+    this->text_remote_message_->publish_state(remote_message);
+}
+
 
 void XRSRadioComponent::handle_plus_wgchsq_(const std::string& payload) {
   // Heuristic: "<zone>,<channel>,\"<name>\",..." – we only care about first 3
@@ -1079,6 +1216,53 @@ void XRSRadioComponent::send_location_update_() {
   snprintf(cmd, sizeof(cmd), "AT+WGTLOC=000000,%.6f,%.6f", lat, lon);
   this->send_raw_command(cmd);
 }
+
+void XRSRadioComponent::send_location_with_message() {
+  // Manual one-shot send for the button: message (if any) + WGTLOC.
+
+  if (!this->is_client_ready_()) {
+    ESP_LOGW(TAG, "Cannot send location+message: BLE client not ready");
+    return;
+  }
+
+  if (this->latitude_sensor_ == nullptr || this->longitude_sensor_ == nullptr)
+    return;
+
+  if (!this->latitude_sensor_->has_state() ||
+      !this->longitude_sensor_->has_state())
+    return;
+
+  float lat = this->latitude_sensor_->state;
+  float lon = this->longitude_sensor_->state;
+
+  if (std::isnan(lat) || std::isnan(lon)) return;
+
+  // Optional message from bound text sensor
+  std::string msg;
+  if (this->message_sensor_ != nullptr && this->message_sensor_->has_state()) {
+    msg = this->message_sensor_->state.c_str();
+  }
+
+  if (!msg.empty()) {
+    // Escape quotes/backslashes for safety
+    std::string escaped;
+    escaped.reserve(msg.size());
+    for (char c : msg) {
+      if (c == '"' || c == '\\') escaped.push_back('\\');
+      escaped.push_back(c);
+    }
+
+    char cmd_msg[160];
+    snprintf(cmd_msg, sizeof(cmd_msg), "AT+WGTMSG=\"%s\"", escaped.c_str());
+    this->send_raw_command(cmd_msg);
+  }
+
+  // Time parameter: still "000000" (no RTC)
+  char cmd_loc[96];
+  snprintf(cmd_loc, sizeof(cmd_loc), "AT+WGTLOC=000000,%.6f,%.6f", lat, lon);
+  this->send_raw_command(cmd_loc);
+}
+
 
 }  // namespace gme_xrs_radio
 }  // namespace esphome

@@ -14,6 +14,9 @@ CONF_XRS_ID = "gme_xrs_id"
 XRSNumericSensorTypeMap = {
     "volume": XRSNumericSensorType.XRS_SENSOR_VOLUME,
     "ptt_timer": XRSNumericSensorType.XRS_SENSOR_PTT_TIMER,
+    "remote_seq": XRSNumericSensorType.XRS_SENSOR_REMOTE_SEQ,
+    "remote_latitude": XRSNumericSensorType.XRS_SENSOR_REMOTE_LATITUDE,
+    "remote_longitude": XRSNumericSensorType.XRS_SENSOR_REMOTE_LONGITUDE,
 }
 
 CONFIG_SCHEMA = sensor.sensor_schema(sensor.Sensor).extend(

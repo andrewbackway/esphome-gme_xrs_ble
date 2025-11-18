@@ -20,6 +20,9 @@ XRSTextSensorTypeMap = {
     "power_state": XRSTextSensorType.XRS_TEXT_POWER_STATE,
     "ptt_state": XRSTextSensorType.XRS_TEXT_PTT_STATE,
     "channel_label": XRSTextSensorType.XRS_TEXT_CHANNEL_LABEL,
+    "remote_uid": XRSTextSensorType.XRS_TEXT_REMOTE_UID,
+    "remote_message": XRSTextSensorType.XRS_TEXT_REMOTE_MESSAGE,
+    "remote_time": XRSTextSensorType.XRS_TEXT_REMOTE_TIME,
 }
 
 CONFIG_SCHEMA = text_sensor.text_sensor_schema(text_sensor.TextSensor).extend(
