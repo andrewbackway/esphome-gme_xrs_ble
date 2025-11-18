@@ -1,32 +1,31 @@
 #pragma once
 
-#include <vector>
-#include <string>
-#include <cstdint>
 #include <cmath>
+#include <cstdint>
+#include <string>
+#include <vector>
 
-#include "esphome/core/component.h"
-#include "esphome/core/log.h"
-#include "esphome/core/helpers.h"
-
-#include "esphome/components/sensor/sensor.h"
-#include "esphome/components/text_sensor/text_sensor.h"
 #include "esphome/components/binary_sensor/binary_sensor.h"
-#include "esphome/components/number/number.h"
-#include "esphome/components/switch/switch.h"
-#include "esphome/components/select/select.h"
-
 #include "esphome/components/ble_client/ble_client.h"
+#include "esphome/components/number/number.h"
+#include "esphome/components/select/select.h"
+#include "esphome/components/sensor/sensor.h"
+#include "esphome/components/switch/switch.h"
+#include "esphome/components/text_sensor/text_sensor.h"
+#include "esphome/core/component.h"
+#include "esphome/core/helpers.h"
+#include "esphome/core/log.h"
 
 #ifdef USE_ESP32
 
 #include "esphome/components/esp32_ble/ble_uuid.h"
 #include "esphome/components/esp32_ble_client/ble_characteristic.h"
-
 #include "xrs_at_parser.h"  // ATParser in namespace esphome::gme_xrs_radio
 
 namespace esphome {
 namespace gme_xrs_radio {
+
+class XRSRadioSelect;
 
 namespace espbt = esphome::esp32_ble_tracker;
 namespace esp32_ble = esphome::esp32_ble;
@@ -108,27 +107,36 @@ class XRSRadioComponent : public Component,
 
   // BLE client callbacks
   void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
-                           esp_ble_gattc_cb_param_t *param) override;
+                           esp_ble_gattc_cb_param_t* param) override;
   void gap_event_handler(esp_gap_ble_cb_event_t event,
-                         esp_ble_gap_cb_param_t *param) override;
+                         esp_ble_gap_cb_param_t* param) override;
 
   // Registration from Python platforms
-  void register_numeric_sensor(XRSNumericSensorType type, sensor::Sensor *sensor);
-  void register_binary_sensor(XRSBinarySensorType type, binary_sensor::BinarySensor *sensor);
-  void register_text_sensor(XRSTextSensorType type, text_sensor::TextSensor *sensor);
-  void register_number(XRSNumberType type, number::Number *number);
-  void register_switch(XRSSwitchType type, switch_::Switch *sw);
-  void register_select(XRSSelectType type, select::Select *sel);
+  void register_numeric_sensor(XRSNumericSensorType type,
+                               sensor::Sensor* sensor);
+  void register_binary_sensor(XRSBinarySensorType type,
+                              binary_sensor::BinarySensor* sensor);
+  void register_text_sensor(XRSTextSensorType type,
+                            text_sensor::TextSensor* sensor);
+  void register_number(XRSNumberType type, number::Number* number);
+  void register_switch(XRSSwitchType type, switch_::Switch* sw);
+  void register_select(XRSSelectType type, XRSRadioSelect *sel);
 
   // Optional debug/text sensor for last raw line/result.
-  void set_status_text_sensor(text_sensor::TextSensor *status) { status_text_sensor_ = status; }
+  void set_status_text_sensor(text_sensor::TextSensor* status) {
+    status_text_sensor_ = status;
+  }
 
   // Location configuration (dynamic lat/long from other sensors).
-  void set_latitude_sensor(sensor::Sensor *sensor) { latitude_sensor_ = sensor; }
-  void set_longitude_sensor(sensor::Sensor *sensor) { longitude_sensor_ = sensor; }
-  void set_location_interval(uint32_t interval_ms) { location_interval_ms_ = interval_ms; }
-
-  
+  void set_latitude_sensor(sensor::Sensor* sensor) {
+    latitude_sensor_ = sensor;
+  }
+  void set_longitude_sensor(sensor::Sensor* sensor) {
+    longitude_sensor_ = sensor;
+  }
+  void set_location_interval(uint32_t interval_ms) {
+    location_interval_ms_ = interval_ms;
+  }
 
   // Public control API used by wrapper entities
   void set_volume(float volume);
@@ -150,41 +158,43 @@ class XRSRadioComponent : public Component,
 
   // ATParserListener implementation
   void on_result_code(gme_xrs_radio::ATResultCode code) override;
-  void on_plus_line(const std::string &name, const std::string &payload) override;
-  void on_info_line(const std::string &line) override;
-  void on_echo(const std::string &line) override;
-  void on_unknown_line(const std::string &line) override;
+  void on_plus_line(const std::string& name,
+                    const std::string& payload) override;
+  void on_info_line(const std::string& line) override;
+  void on_echo(const std::string& line) override;
+  void on_unknown_line(const std::string& line) override;
 
   // Low-level: send a raw ASCII AT command (adds CR/LF if missing).
-  void send_raw_command(const std::string &cmd);
+  void send_raw_command(const std::string& cmd);
 
  protected:
   // BLE helpers
   void handle_search_complete_();
-  void handle_notify_(uint16_t handle, const uint8_t *data, uint16_t length);
+  void handle_notify_(uint16_t handle, const uint8_t* data, uint16_t length);
   void ensure_paired_();
   bool is_client_ready_();
 
   // State publishing helpers
-  void publish_status_(const std::string &line);
+  void publish_status_(const std::string& line);
   void publish_all_state_();
   void publish_connection_state_(bool connected);
 
   // Handlers for particular AT notifications / responses
-  void handle_plus_wgchs_(const std::string &payload);   // channel set
-  void handle_plus_whzs_(const std::string &payload);    // zone set
-  void handle_plus_wgptt_(const std::string &payload);   // PTT state
-  void handle_plus_wgpow_(const std::string &payload);   // power state
-  void handle_plus_wgscan_(const std::string &payload);  // scan state
-  void handle_plus_wgdup_(const std::string &payload);   // duplex
-  void handle_plus_wgcsm_(const std::string &payload);   // silent memory
-  void handle_plus_wgsqm_(const std::string &payload);   // quiet memory
-  void handle_plus_wgssq_(const std::string &payload);   // quiet mode
-  void handle_plus_wgchsq_(const std::string &payload);  // channel table (if present)
-  void handle_plus_gmi_(const std::string &payload);
-  void handle_plus_gmm_(const std::string &payload);
-  void handle_plus_gmr_(const std::string &payload);
-  void handle_plus_gsn_(const std::string &payload);
+  void handle_plus_wgchs_(const std::string& payload);   // channel set
+  void handle_plus_whzs_(const std::string& payload);    // zone set
+  void handle_plus_wgptt_(const std::string& payload);   // PTT state
+  void handle_plus_wgpow_(const std::string& payload);   // power state
+  void handle_plus_wgscan_(const std::string& payload);  // scan state
+  void handle_plus_wgdup_(const std::string& payload);   // duplex
+  void handle_plus_wgcsm_(const std::string& payload);   // silent memory
+  void handle_plus_wgsqm_(const std::string& payload);   // quiet memory
+  void handle_plus_wgssq_(const std::string& payload);   // quiet mode
+  void handle_plus_wgchsq_(
+      const std::string& payload);  // channel table (if present)
+  void handle_plus_gmi_(const std::string& payload);
+  void handle_plus_gmm_(const std::string& payload);
+  void handle_plus_gmr_(const std::string& payload);
+  void handle_plus_gsn_(const std::string& payload);
 
   // Location upload
   void send_location_update_();
@@ -193,7 +203,7 @@ class XRSRadioComponent : public Component,
   std::string get_channel_label_(uint8_t zone, uint8_t channel) const;
 
   // BLE handles
-  esp32_ble_client::BLECharacteristic *tx_char_{nullptr};
+  esp32_ble_client::BLECharacteristic* tx_char_{nullptr};
   std::vector<uint16_t> notify_handles_;
 
   // AT parser
@@ -226,8 +236,8 @@ class XRSRadioComponent : public Component,
   std::string serial_;
 
   // Location upload configuration/state.
-  sensor::Sensor *latitude_sensor_{nullptr};
-  sensor::Sensor *longitude_sensor_{nullptr};
+  sensor::Sensor* latitude_sensor_{nullptr};
+  sensor::Sensor* longitude_sensor_{nullptr};
   bool location_mode_{false};
   uint32_t location_interval_ms_{60000};
   uint32_t last_location_sent_{0};
@@ -236,45 +246,45 @@ class XRSRadioComponent : public Component,
   std::vector<ChannelInfo> channel_table_;
 
   // Registered entities
-  sensor::Sensor *sensor_channel_{nullptr};
-  sensor::Sensor *sensor_zone_{nullptr};
-  sensor::Sensor *sensor_volume_{nullptr};
-  sensor::Sensor *sensor_ptt_timer_{nullptr};
+  sensor::Sensor* sensor_channel_{nullptr};
+  sensor::Sensor* sensor_zone_{nullptr};
+  sensor::Sensor* sensor_volume_{nullptr};
+  sensor::Sensor* sensor_ptt_timer_{nullptr};
 
-  binary_sensor::BinarySensor *bin_connected_{nullptr};
-  binary_sensor::BinarySensor *bin_ptt_active_{nullptr};
-  binary_sensor::BinarySensor *bin_ptt_data_{nullptr};
-  binary_sensor::BinarySensor *bin_power_low_{nullptr};
-  binary_sensor::BinarySensor *bin_scanning_{nullptr};
-  binary_sensor::BinarySensor *bin_duplex_enabled_{nullptr};
-  binary_sensor::BinarySensor *bin_silent_memory_{nullptr};
-  binary_sensor::BinarySensor *bin_quiet_memory_{nullptr};
-  binary_sensor::BinarySensor *bin_quiet_mode_{nullptr};
+  binary_sensor::BinarySensor* bin_connected_{nullptr};
+  binary_sensor::BinarySensor* bin_ptt_active_{nullptr};
+  binary_sensor::BinarySensor* bin_ptt_data_{nullptr};
+  binary_sensor::BinarySensor* bin_power_low_{nullptr};
+  binary_sensor::BinarySensor* bin_scanning_{nullptr};
+  binary_sensor::BinarySensor* bin_duplex_enabled_{nullptr};
+  binary_sensor::BinarySensor* bin_silent_memory_{nullptr};
+  binary_sensor::BinarySensor* bin_quiet_memory_{nullptr};
+  binary_sensor::BinarySensor* bin_quiet_mode_{nullptr};
 
-  text_sensor::TextSensor *text_manufacturer_{nullptr};
-  text_sensor::TextSensor *text_model_{nullptr};
-  text_sensor::TextSensor *text_firmware_{nullptr};
-  text_sensor::TextSensor *text_serial_{nullptr};
-  text_sensor::TextSensor *text_last_message_{nullptr};
-  text_sensor::TextSensor *text_power_state_{nullptr};
-  text_sensor::TextSensor *text_ptt_state_{nullptr};
-  text_sensor::TextSensor *text_channel_label_{nullptr};
-  text_sensor::TextSensor *status_text_sensor_{nullptr};
+  text_sensor::TextSensor* text_manufacturer_{nullptr};
+  text_sensor::TextSensor* text_model_{nullptr};
+  text_sensor::TextSensor* text_firmware_{nullptr};
+  text_sensor::TextSensor* text_serial_{nullptr};
+  text_sensor::TextSensor* text_last_message_{nullptr};
+  text_sensor::TextSensor* text_power_state_{nullptr};
+  text_sensor::TextSensor* text_ptt_state_{nullptr};
+  text_sensor::TextSensor* text_channel_label_{nullptr};
+  text_sensor::TextSensor* status_text_sensor_{nullptr};
 
-  number::Number *num_volume_{nullptr};
+  number::Number* num_volume_{nullptr};
 
-  switch_::Switch *sw_location_mode_{nullptr};
-  switch_::Switch *sw_scan_{nullptr};
-  switch_::Switch *sw_duplex_{nullptr};
-  switch_::Switch *sw_quiet_mode_{nullptr};
-  switch_::Switch *sw_quiet_memory_{nullptr};
-  switch_::Switch *sw_silent_memory_{nullptr};
+  switch_::Switch* sw_location_mode_{nullptr};
+  switch_::Switch* sw_scan_{nullptr};
+  switch_::Switch* sw_duplex_{nullptr};
+  switch_::Switch* sw_quiet_mode_{nullptr};
+  switch_::Switch* sw_quiet_memory_{nullptr};
+  switch_::Switch* sw_silent_memory_{nullptr};
 
-  select::Select *sel_zone_{nullptr};
-  select::Select *sel_channel_{nullptr};
+  XRSRadioSelect* sel_zone_{nullptr};
+  XRSRadioSelect* sel_channel_{nullptr};
 };
 
-}  // namespace xrs_radio
+}  // namespace gme_xrs_radio
 }  // namespace esphome
 
 #endif  // USE_ESP32

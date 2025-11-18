@@ -19,13 +19,6 @@ void XRSRadioSelect::dump_config() {
   ESP_LOGCONFIG(TAG, "XRS Radio Select");
 }
 
-select::SelectTraits XRSRadioSelect::get_traits() {
-  // Start from base traits so we keep defaults (optimistic, etc.)
-  auto traits = select::Select::get_traits();
-  traits.set_options(this->options_);
-  return traits;
-}
-
 void XRSRadioSelect::update_options_() {
   this->options_.clear();
 
@@ -47,7 +40,12 @@ void XRSRadioSelect::update_options_() {
     default:
       break;
   }
+
+  // Push options into the base Select traits so HA sees them
+  auto &traits = this->traits_;
+  traits.set_options(this->options_);
 }
+
 
 void XRSRadioSelect::refresh_from_parent() {
   if (this->parent_ == nullptr) {

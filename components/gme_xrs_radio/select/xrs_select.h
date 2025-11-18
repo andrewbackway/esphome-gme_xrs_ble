@@ -19,7 +19,6 @@ class XRSRadioSelect : public select::Select, public Component {
 
   void setup() override;
   void dump_config() override;
-  select::SelectTraits get_traits() override;
 
   // Called by the hub when zone/channel state or channel table changes
   void refresh_from_parent();
