@@ -15,7 +15,7 @@ XRSNumberTypeMap = {
     "volume": XRSNumberType.XRS_NUMBER_VOLUME,
 }
 
-CONFIG_SCHEMA = number.number_schema().extend(
+CONFIG_SCHEMA = number.number_schema(number.Number).extend(
     {
         cv.GenerateID(CONF_ID): cv.declare_id(number.Number),
         cv.GenerateID(CONF_XRS_ID): cv.use_id(XRSRadioComponent),

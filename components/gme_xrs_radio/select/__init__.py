@@ -16,7 +16,7 @@ XRS_RADIO_SELECT_TYPES = {
     "channel": XRSSelectType.XRS_SELECT_CHANNEL,
 }
 
-CONFIG_SCHEMA = select_base.select_schema().extend(
+CONFIG_SCHEMA = select_base.select_schema(XRSRadioSelect).extend(
     {
         cv.GenerateID(CONF_ID): cv.declare_id(XRSRadioSelect),
         cv.GenerateID(CONF_XRS_ID): cv.use_id(XRSRadioComponent),
@@ -29,9 +29,8 @@ async def to_code(config):
     parent = await cg.get_variable(config[CONF_XRS_ID])
     type_enum = XRS_RADIO_SELECT_TYPES[config[CONF_TYPE]]
 
-    # new_select() in 2025.10 requires 'options' kwarg.
-    # We pass an empty list because options are provided dynamically
-    # from XRSRadioSelect::get_traits() and refresh_from_parent().
+    # In 2025.10+ new_select() wants 'options', but we pass an empty list
+    # because options are provided dynamically from C++.
     var = await select_base.new_select(config, options=[])
 
     cg.add(var.set_parent(parent))
