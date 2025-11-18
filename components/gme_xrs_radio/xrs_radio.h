@@ -191,8 +191,9 @@ class XRSRadioComponent : public Component,
   void publish_connection_state_(bool connected);
 
   // Handlers for particular AT notifications / responses
+  void handle_plus_wgzs_(const std::string& payload); // zone set
   void handle_plus_wgchs_(const std::string& payload);   // channel set
-  void handle_plus_whzs_(const std::string& payload);    // zone set
+  void handle_plus_whzs_(const std::string& payload);    // zone change set
   void handle_plus_wgptt_(const std::string& payload);   // PTT state
   void handle_plus_wgpow_(const std::string& payload);   // power state
   void handle_plus_wgscan_(const std::string& payload);  // scan state
