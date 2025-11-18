@@ -53,20 +53,25 @@ void XRSRadioSelect::refresh_from_parent() {
 
   switch (this->type_) {
     case XRS_SELECT_ZONE: {
-      auto label =
-          this->parent_->get_zone_label(this->parent_->get_current_zone());
-      this->publish_state(label);
+      unsigned zone = this->parent_->get_current_zone();
+      std::snprintf(buf, sizeof(buf), "Z%u", zone);
+      this->publish_state(buf);
       break;
     }
+
     case XRS_SELECT_CHANNEL: {
-      auto label = this->parent_->get_channel_label(
-          this->parent_->get_current_zone(),
-          this->parent_->get_current_channel());
-      this->publish_state(label);
+      unsigned zone = this->parent_->get_current_zone();
+      unsigned ch = this->parent_->get_current_channel();
+      std::snprintf(buf, sizeof(buf), "Z%u / Ch %u", zone, ch);
+      this->publish_state(buf);
       break;
     }
+
+    default:
+      break;
   }
 }
+
 
 void XRSRadioSelect::control(const std::string& value) {
   if (this->parent_ == nullptr) {
