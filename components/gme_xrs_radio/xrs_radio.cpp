@@ -426,14 +426,16 @@ void XRSRadioComponent::handle_search_complete_() {
   this->publish_connection_state_(true);
 
   // Initial handshake: echo on, verbose, and basic IDs.
-  this->send_raw_command("ATE1");
-  this->send_raw_command("ATV1");
-  this->send_raw_command("AT+GMI?");
-  this->send_raw_command("AT+GMM?");
-  this->send_raw_command("AT+GMR?");
-  this->send_raw_command("AT+GSN?");
-  this->send_raw_command("AT+GOI?");
-  this->send_raw_command("AT+WGAV"); // try and get volume? 
+  this->send_raw_command("ATE1"); // echo
+  this->send_raw_command("ATV1"); // verbose
+  this->send_raw_command("AT+GMI?"); // vendor
+  this->send_raw_command("AT+GMM?"); // model
+  // this->send_raw_command("AT+GMR?"); // firmware version
+  //this->send_raw_command("AT+GSN?"); // serial number
+  //this->send_raw_command("AT+GOI?"); // mac address
+  this->send_raw_command("AT+WGAV?"); // try and get volume? 
+  this->send_raw_command("AT+WGCHS?"); // query current channel
+  this->send_raw_command("AT+WGZR?"); // query current zone
   // disabled to reduce memory consumption
   //this->send_raw_command("AT+WGZL"); // list all zones
   //this->send_raw_command("AT+WGCHL"); // list all channels
