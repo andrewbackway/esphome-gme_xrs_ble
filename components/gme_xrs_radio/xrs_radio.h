@@ -26,6 +26,8 @@ namespace esphome {
 namespace gme_xrs_radio {
 
 class XRSRadioSelect;
+class XRSRadioNumber;
+class XRSRadioSwitch;
 
 namespace espbt = esphome::esp32_ble_tracker;
 namespace esp32_ble = esphome::esp32_ble;
@@ -78,7 +80,7 @@ enum XRSSwitchType {
   XRS_SWITCH_SILENT_MEMORY,
 };
 
-enum class XRSSelectType {
+enum XRSSelectType : uint8_t {
   XRS_SELECT_ZONE,
   XRS_SELECT_CHANNEL,
 };
@@ -118,9 +120,11 @@ class XRSRadioComponent : public Component,
                               binary_sensor::BinarySensor* sensor);
   void register_text_sensor(XRSTextSensorType type,
                             text_sensor::TextSensor* sensor);
-  void register_number(XRSNumberType type, number::Number* number);
-  void register_switch(XRSSwitchType type, switch_::Switch* sw);
-  void register_select(XRSSelectType type, XRSRadioSelect *sel);
+
+  void register_number(XRSNumberType type, XRSRadioNumber* num);
+
+  void register_switch(XRSSwitchType type, XRSRadioSwitch* sw);
+  void register_select(XRSSelectType type, XRSRadioSelect* sel);
 
   // Optional debug/text sensor for last raw line/result.
   void set_status_text_sensor(text_sensor::TextSensor* status) {
@@ -139,7 +143,7 @@ class XRSRadioComponent : public Component,
   }
 
   // Public control API used by wrapper entities
-  void set_volume(float volume);
+  void set_volume(uint8_t volume);
   void set_location_mode(bool enabled);
   void set_scan_enabled(bool enabled);
   void set_duplex_enabled(bool enabled);
@@ -273,12 +277,12 @@ class XRSRadioComponent : public Component,
 
   number::Number* num_volume_{nullptr};
 
-  switch_::Switch* sw_location_mode_{nullptr};
-  switch_::Switch* sw_scan_{nullptr};
-  switch_::Switch* sw_duplex_{nullptr};
-  switch_::Switch* sw_quiet_mode_{nullptr};
-  switch_::Switch* sw_quiet_memory_{nullptr};
-  switch_::Switch* sw_silent_memory_{nullptr};
+  XRSRadioSwitch *sw_location_mode_{nullptr};
+  XRSRadioSwitch *sw_scan_{nullptr};
+  XRSRadioSwitch *sw_duplex_{nullptr};
+  XRSRadioSwitch *sw_quiet_mode_{nullptr};
+  XRSRadioSwitch *sw_quiet_memory_{nullptr};
+  XRSRadioSwitch *sw_silent_memory_{nullptr};
 
   XRSRadioSelect* sel_zone_{nullptr};
   XRSRadioSelect* sel_channel_{nullptr};

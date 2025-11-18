@@ -7,9 +7,14 @@ from esphome.const import CONF_ID, CONF_TYPE
 from .. import (
     XRSRadioComponent,
     XRSSwitchType,
+    xrs_radio_ns,
 )
 
-CONF_XRS_ID = "gme_xrs_id"
+CONF_GME_XRS_ID = "gme_xrs_id"
+
+XRSRadioSwitch = xrs_radio_ns.class_(
+    "XRSRadioSwitch", switch.Switch, cg.Component
+)
 
 XRSSwitchTypeMap = {
     "location_mode": XRSSwitchType.XRS_SWITCH_LOCATION_MODE,
@@ -20,16 +25,20 @@ XRSSwitchTypeMap = {
     "silent_memory": XRSSwitchType.XRS_SWITCH_SILENT_MEMORY,
 }
 
-CONFIG_SCHEMA = switch.switch_schema(switch.Switch).extend(
+CONFIG_SCHEMA = switch.switch_schema(XRSRadioSwitch).extend(
     {
-        cv.GenerateID(CONF_ID): cv.declare_id(switch.Switch),
-        cv.GenerateID(CONF_XRS_ID): cv.use_id(XRSRadioComponent),
+        cv.GenerateID(CONF_ID): cv.declare_id(XRSRadioSwitch),
+        cv.GenerateID(CONF_GME_XRS_ID): cv.use_id(XRSRadioComponent),
         cv.Required(CONF_TYPE): cv.enum(XRSSwitchTypeMap, lower=True),
     }
 )
 
 
 async def to_code(config):
+    parent = await cg.get_variable(config[CONF_GME_XRS_ID])
+    type_enum = XRSSwitchTypeMap[config[CONF_TYPE]]
+
     sw = await switch.new_switch(config)
-    hub = await cg.get_variable(config[CONF_XRS_ID])
-    cg.add(hub.register_switch(config[CONF_TYPE], sw))
+    cg.add(sw.set_parent(parent))
+    cg.add(sw.set_type(type_enum))
+    cg.add(parent.register_switch(type_enum, sw))

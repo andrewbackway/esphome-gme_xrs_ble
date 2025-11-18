@@ -7,6 +7,8 @@
 #include "esp_gatt_defs.h"
 #include "esp_gattc_api.h"
 #include "select/xrs_select.h"
+#include "number/xrs_number.h"
+#include "switch/xrs_switch.h"
 
 namespace esphome {
 namespace gme_xrs_radio {
@@ -187,37 +189,42 @@ void XRSRadioComponent::register_text_sensor(XRSTextSensorType type,
 }
 
 void XRSRadioComponent::register_number(XRSNumberType type,
-                                        number::Number* number) {
+                                        XRSRadioNumber *num) {
   switch (type) {
     case XRS_NUMBER_VOLUME:
-      this->num_volume_ = number;
+      this->number_volume_ = num;
+      break;
+    default:
       break;
   }
 }
 
 void XRSRadioComponent::register_switch(XRSSwitchType type,
-                                        switch_::Switch* sw) {
+                                        XRSRadioSwitch *sw) {
   switch (type) {
     case XRS_SWITCH_LOCATION_MODE:
-      this->sw_location_mode_ = sw;
+      sw_location_mode_ = sw;
       break;
     case XRS_SWITCH_SCAN:
-      this->sw_scan_ = sw;
+      sw_scan_ = sw;
       break;
     case XRS_SWITCH_DUPLEX:
-      this->sw_duplex_ = sw;
+      sw_duplex_ = sw;
       break;
     case XRS_SWITCH_QUIET_MODE:
-      this->sw_quiet_mode_ = sw;
+      sw_quiet_mode_ = sw;
       break;
     case XRS_SWITCH_QUIET_MEMORY:
-      this->sw_quiet_memory_ = sw;
+      sw_quiet_memory_ = sw;
       break;
     case XRS_SWITCH_SILENT_MEMORY:
-      this->sw_silent_memory_ = sw;
+      sw_silent_memory_ = sw;
+      break;
+    default:
       break;
   }
 }
+
 
 void XRSRadioComponent::register_select(XRSSelectType type,
                                         XRSRadioSelect* sel) {
@@ -800,22 +807,14 @@ void XRSRadioComponent::handle_plus_wgchsq_(const std::string& payload) {
 // Public control API (called from wrapper entities)
 // -----------------------------------------------------------------------------
 
-void XRSRadioComponent::set_volume(float volume) {
-  // Clamp and round to int 0..31
-  if (volume < 0.0f) volume = 0.0f;
-  if (volume > 31.0f) volume = 31.0f;
-
-  uint8_t vol = static_cast<uint8_t>(std::round(volume));
-  this->current_volume_ = vol;
+void XRSRadioComponent::set_volume(uint8_t volume) {
+  // Clamp, then send AT command – tweak command to match spec if needed
+  if (volume > 31)
+    volume = 31;
 
   char cmd[32];
-  snprintf(cmd, sizeof(cmd), "AT+WGAV=%u", static_cast<unsigned>(vol));
-  this->send_raw_command(cmd);
-
-  if (this->sensor_volume_ != nullptr)
-    this->sensor_volume_->publish_state(static_cast<float>(vol));
-  if (this->num_volume_ != nullptr)
-    this->num_volume_->publish_state(static_cast<float>(vol));
+  snprintf(cmd, sizeof(cmd), "AT+WVOL=%u", static_cast<unsigned>(volume));
+  this->send_at_command_(cmd);  // use whatever helper you already have
 }
 
 void XRSRadioComponent::set_location_mode(bool enabled) {
