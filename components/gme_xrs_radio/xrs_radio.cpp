@@ -1110,8 +1110,6 @@ void XRSRadioComponent::publish_connection_state_(bool connected) {
 
 void XRSRadioComponent::publish_all_state_() {
   // Re-publish key state to entities that care.
-  if (this->sensor_channel_ != nullptr)
-    this->sensor_channel_->publish_state(this->current_channel_);
 
   if (this->number_volume_ != nullptr)
     this->number_volume_->publish_state(this->current_volume_);
@@ -1126,18 +1124,6 @@ void XRSRadioComponent::publish_all_state_() {
     this->sw_quiet_memory_->publish_state(this->quiet_memory_);
   if (this->sw_quiet_mode_ != nullptr)
     this->sw_quiet_mode_->publish_state(this->quiet_mode_);
-
-  // Legacy binary_sensor mirrors (only present if user still configured them)
-  if (this->bin_scanning_ != nullptr)
-    this->bin_scanning_->publish_state(this->scanning_);
-  if (this->bin_duplex_enabled_ != nullptr)
-    this->bin_duplex_enabled_->publish_state(this->duplex_enabled_);
-  if (this->bin_silent_memory_ != nullptr)
-    this->bin_silent_memory_->publish_state(this->silent_memory_);
-  if (this->bin_quiet_memory_ != nullptr)
-    this->bin_quiet_memory_->publish_state(this->quiet_memory_);
-  if (this->bin_quiet_mode_ != nullptr)
-    this->bin_quiet_mode_->publish_state(this->quiet_mode_);
 
   auto label =
       this->get_channel_label_(this->current_zone_, this->current_channel_);
