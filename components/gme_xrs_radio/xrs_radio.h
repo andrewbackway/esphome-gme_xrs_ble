@@ -148,8 +148,6 @@ class XRSRadioComponent : public Component,
   void set_location_interval(uint32_t interval_ms) {
     location_interval_ms_ = interval_ms;
   }
-  // manual "send location + message now" for the button
-  void send_location_with_message();
   // optional message source (text sensor) for WGTMSG payload
   void set_message_sensor(text_sensor::TextSensor* sensor) {
     message_sensor_ = sensor;
