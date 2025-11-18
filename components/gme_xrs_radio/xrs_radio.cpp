@@ -460,6 +460,9 @@ void XRSRadioComponent::handle_search_complete_() {
   this->send_raw_command("AT+GOI?");
   // If you have a channel table query (e.g. AT+WGCHSQ), send it here as well.
   this->send_raw_command("AT+WGCHSQ");
+  //  Ask for the current zone/channel so we initialise to the
+  //    real radio state (this should trigger a +WGCHS: z,ch reply)
+  this->send_raw_command("AT+WGCHS?");
 }
 
 void XRSRadioComponent::handle_notify_(uint16_t handle, const uint8_t* data,
@@ -968,13 +971,13 @@ void XRSRadioComponent::handle_plus_wgchsq_(const std::string& payload) {
 // -----------------------------------------------------------------------------
 
 void XRSRadioComponent::set_volume(uint8_t volume) {
-  // Clamp, then send AT command – tweak command to match spec if needed
-  if (volume > 31)
-    volume = 31;
+  // Clamp if you want, e.g. 0–31
+  if (volume > 31) volume = 31;
 
-  char cmd[32];
-  snprintf(cmd, sizeof(cmd), "AT+WVOL=%u", static_cast<unsigned>(volume));
-  this->send_raw_command(cmd);  // use the existing BLE write helper
+  char cmd[24];
+  // XRS uses WGAV for audio volume
+  snprintf(cmd, sizeof(cmd), "AT+WGAV=%u", static_cast<unsigned>(volume));
+  this->send_raw_command(cmd);
 }
 
 void XRSRadioComponent::set_location_mode(bool enabled) {
