@@ -6,8 +6,8 @@
 #include "esp_gap_ble_api.h"
 #include "esp_gatt_defs.h"
 #include "esp_gattc_api.h"
-#include "select/xrs_select.h"
 #include "number/xrs_number.h"
+#include "select/xrs_select.h"
 #include "switch/xrs_switch.h"
 
 namespace esphome {
@@ -110,15 +110,6 @@ void XRSRadioComponent::dump_config() {
 void XRSRadioComponent::register_numeric_sensor(XRSNumericSensorType type,
                                                 sensor::Sensor* sensor) {
   switch (type) {
-    case XRS_SENSOR_CHANNEL:
-      this->sensor_channel_ = sensor;
-      break;
-    case XRS_SENSOR_ZONE:
-      this->sensor_zone_ = sensor;
-      break;
-    case XRS_SENSOR_VOLUME:
-      this->sensor_volume_ = sensor;
-      break;
     case XRS_SENSOR_PTT_TIMER:
       this->sensor_ptt_timer_ = sensor;
       break;
@@ -148,21 +139,6 @@ void XRSRadioComponent::register_binary_sensor(
       break;
     case XRS_BIN_POWER_LOW:
       this->bin_power_low_ = sensor;
-      break;
-    case XRS_BIN_SCANNING:
-      this->bin_scanning_ = sensor;
-      break;
-    case XRS_BIN_DUPLEX_ENABLED:
-      this->bin_duplex_enabled_ = sensor;
-      break;
-    case XRS_BIN_SILENT_MEMORY:
-      this->bin_silent_memory_ = sensor;
-      break;
-    case XRS_BIN_QUIET_MEMORY:
-      this->bin_quiet_memory_ = sensor;
-      break;
-    case XRS_BIN_QUIET_MODE:
-      this->bin_quiet_mode_ = sensor;
       break;
   }
 }
@@ -207,7 +183,7 @@ void XRSRadioComponent::register_text_sensor(XRSTextSensorType type,
 }
 
 void XRSRadioComponent::register_number(XRSNumberType type,
-                                        XRSRadioNumber *num) {
+                                        XRSRadioNumber* num) {
   switch (type) {
     case XRS_NUMBER_VOLUME:
       this->number_volume_ = num;
@@ -218,7 +194,7 @@ void XRSRadioComponent::register_number(XRSNumberType type,
 }
 
 void XRSRadioComponent::register_switch(XRSSwitchType type,
-                                        XRSRadioSwitch *sw) {
+                                        XRSRadioSwitch* sw) {
   switch (type) {
     case XRS_SWITCH_LOCATION_MODE:
       sw_location_mode_ = sw;
@@ -244,7 +220,7 @@ void XRSRadioComponent::register_switch(XRSSwitchType type,
 }
 
 void XRSRadioComponent::register_select(XRSSelectType type,
-                                        XRSRadioSelect *sel) {
+                                        XRSRadioSelect* sel) {
   switch (type) {
     case XRS_SELECT_ZONE:
       this->sel_zone_ = sel;
@@ -256,7 +232,6 @@ void XRSRadioComponent::register_select(XRSSelectType type,
       break;
   }
 }
-
 
 // -----------------------------------------------------------------------------
 // BLE client callbacks
@@ -458,6 +433,7 @@ void XRSRadioComponent::handle_search_complete_() {
   this->send_raw_command("AT+GMR?");
   this->send_raw_command("AT+GSN?");
   this->send_raw_command("AT+GOI?");
+
   // If you have a channel table query (e.g. AT+WGCHSQ), send it here as well.
   this->send_raw_command("AT+WGCHSQ");
   //  Ask for the current zone/channel so we initialise to the
@@ -567,6 +543,10 @@ void XRSRadioComponent::on_plus_line(const std::string& name,
     this->handle_plus_wgrmloc_(payload);
     return;
   }
+  if (name == "WGAV") {
+    this->handle_plus_wgav_(payload);
+    return;
+  }
 
   // Fallback: update "last message" text sensor
   if (this->text_last_message_ != nullptr) {
@@ -595,6 +575,16 @@ void XRSRadioComponent::on_unknown_line(const std::string& line) {
 // -----------------------------------------------------------------------------
 // AT "+" line handlers
 // -----------------------------------------------------------------------------
+
+// Volume report
+void XRSRadioComponent::handle_plus_wgav_(const std::string& payload) {
+  int vol = 0;
+  if (sscanf(payload.c_str(), "%d", &vol) == 1) {
+    this->current_volume_ = static_cast<uint8_t>(vol);
+    if (this->number_volume_ != nullptr)
+      this->number_volume_->refresh_from_parent();
+  }
+}
 
 void XRSRadioComponent::handle_plus_gmi_(const std::string& payload) {
   this->manufacturer_ = payload;
@@ -636,8 +626,7 @@ void XRSRadioComponent::handle_plus_wgchs_(const std::string& payload) {
       this->text_channel_label_->publish_state(label);
 
     // keep selects in sync if present
-    if (this->sel_zone_ != nullptr)
-      this->sel_zone_->refresh_from_parent();
+    if (this->sel_zone_ != nullptr) this->sel_zone_->refresh_from_parent();
     if (this->sel_channel_ != nullptr)
       this->sel_channel_->refresh_from_parent();
   }
@@ -649,13 +638,11 @@ void XRSRadioComponent::handle_plus_whzs_(const std::string& payload) {
     this->current_zone_ = static_cast<uint8_t>(zone);
 
     // Zone sensor is no longer exposed; keep selects in sync instead.
-    if (this->sel_zone_ != nullptr)
-      this->sel_zone_->refresh_from_parent();
+    if (this->sel_zone_ != nullptr) this->sel_zone_->refresh_from_parent();
     if (this->sel_channel_ != nullptr)
       this->sel_channel_->refresh_from_parent();
   }
 }
-
 
 void XRSRadioComponent::handle_plus_wgptt_(const std::string& payload) {
   int state = 0;
@@ -745,8 +732,7 @@ void XRSRadioComponent::handle_plus_wgscan_(const std::string& payload) {
 
   this->scanning_ = (enabled != 0);
 
-  if (this->sw_scan_ != nullptr)
-    this->sw_scan_->publish_state(this->scanning_);
+  if (this->sw_scan_ != nullptr) this->sw_scan_->publish_state(this->scanning_);
   if (this->bin_scanning_ != nullptr)
     this->bin_scanning_->publish_state(this->scanning_);
 }
@@ -834,8 +820,7 @@ void XRSRadioComponent::handle_plus_wgrmloc_(const std::string& payload) {
 
     // Trim leading whitespace
     auto first_non = rest.find_first_not_of(" \t");
-    if (first_non != std::string::npos)
-      rest.erase(0, first_non);
+    if (first_non != std::string::npos) rest.erase(0, first_non);
 
     if (!rest.empty() && rest[0] == '"') {
       // UID in quotes
@@ -848,8 +833,7 @@ void XRSRadioComponent::handle_plus_wgrmloc_(const std::string& payload) {
           std::string rest_msg = rest.substr(comma2 + 1);
 
           auto first_non2 = rest_msg.find_first_not_of(" \t");
-          if (first_non2 != std::string::npos)
-            rest_msg.erase(0, first_non2);
+          if (first_non2 != std::string::npos) rest_msg.erase(0, first_non2);
 
           if (!rest_msg.empty() && rest_msg[0] == '"') {
             auto end_msg = rest_msg.find('"', 1);
@@ -913,7 +897,6 @@ void XRSRadioComponent::handle_plus_wgrmloc_(const std::string& payload) {
   if (this->text_remote_message_ != nullptr)
     this->text_remote_message_->publish_state(remote_message);
 }
-
 
 void XRSRadioComponent::handle_plus_wgchsq_(const std::string& payload) {
   // Heuristic: "<zone>,<channel>,\"<name>\",..." – we only care about first 3
@@ -1056,24 +1039,21 @@ std::vector<std::string> XRSRadioComponent::get_channel_options() const {
   uint8_t zone = this->current_zone_;
 
   // Simple insertion de-dup; channel_table_ is expected to be small.
-  for (const auto &info : this->channel_table_) {
-    if (info.zone != zone)
-      continue;
+  for (const auto& info : this->channel_table_) {
+    if (info.zone != zone) continue;
 
     char buf[8];
-    std::snprintf(buf, sizeof(buf), "%u",
-                  static_cast<unsigned>(info.channel));
+    std::snprintf(buf, sizeof(buf), "%u", static_cast<unsigned>(info.channel));
     std::string label = buf;
 
     bool exists = false;
-    for (const auto &existing : out) {
+    for (const auto& existing : out) {
       if (existing == label) {
         exists = true;
         break;
       }
     }
-    if (!exists)
-      out.push_back(label);
+    if (!exists) out.push_back(label);
   }
   return out;
 }
@@ -1150,8 +1130,7 @@ void XRSRadioComponent::publish_all_state_() {
     this->number_volume_->publish_state(this->current_volume_);
 
   // Switch-based booleans
-  if (this->sw_scan_ != nullptr)
-    this->sw_scan_->publish_state(this->scanning_);
+  if (this->sw_scan_ != nullptr) this->sw_scan_->publish_state(this->scanning_);
   if (this->sw_duplex_ != nullptr)
     this->sw_duplex_->publish_state(this->duplex_enabled_);
   if (this->sw_silent_memory_ != nullptr)
@@ -1172,7 +1151,7 @@ void XRSRadioComponent::publish_all_state_() {
     this->bin_quiet_memory_->publish_state(this->quiet_memory_);
   if (this->bin_quiet_mode_ != nullptr)
     this->bin_quiet_mode_->publish_state(this->quiet_mode_);
-    
+
   auto label =
       this->get_channel_label_(this->current_zone_, this->current_channel_);
   if (this->text_channel_label_ != nullptr)
@@ -1265,7 +1244,6 @@ void XRSRadioComponent::send_location_with_message() {
   snprintf(cmd_loc, sizeof(cmd_loc), "AT+WGTLOC=000000,%.6f,%.6f", lat, lon);
   this->send_raw_command(cmd_loc);
 }
-
 
 }  // namespace gme_xrs_radio
 }  // namespace esphome
