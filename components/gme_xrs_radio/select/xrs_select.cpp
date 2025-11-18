@@ -37,7 +37,7 @@ void XRSRadioSelect::update_options_() {
         for (uint8_t z = 1; z <= 8; z++) {
           char buf[8];
           snprintf(buf, sizeof(buf), "Z%u", static_cast<unsigned>(z));
-          options_.emplace_back(buf);
+          opts.emplace_back(buf);
         }
       }
       break;
@@ -53,7 +53,7 @@ void XRSRadioSelect::update_options_() {
         for (uint8_t ch = 1; ch <= 80; ch++) {
           char buf[8];
           snprintf(buf, sizeof(buf), "%u", static_cast<unsigned>(ch));
-          options_.emplace_back(buf);
+          opts.emplace_back(buf);
         }
         break;
       }
@@ -62,10 +62,14 @@ void XRSRadioSelect::update_options_() {
         break;
     }
   }
+  if (opts.empty()) {
+    ESP_LOGW(TAG, "Select (%s): still no options after update",
+             this->type_ == XRS_SELECT_ZONE ? "zone" : "channel");
+    return;
+  }
 
-  this->options_.assign(opts.begin(), opts.end());
-
-  // CRITICAL: teach the base class what options are valid
+  // Store and expose to the base class / API
+  this->options_ = std::move(opts);
   this->traits.set_options(this->options_);
 }
 
