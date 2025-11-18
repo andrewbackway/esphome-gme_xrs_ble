@@ -81,7 +81,7 @@ enum XRSSwitchType : uint8_t {
   XRS_SWITCH_SILENT_MEMORY,
 };
 
-enum class XRSSelectType : uint8_t {
+enum XRSSelectType : uint8_t {
   XRS_SELECT_ZONE,
   XRS_SELECT_CHANNEL,
 };
