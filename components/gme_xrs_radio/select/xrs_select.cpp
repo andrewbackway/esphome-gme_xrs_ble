@@ -32,6 +32,7 @@ void XRSRadioSelect::update_options_() {
 
       // Fallback in case channel table is still empty: just synthesise Z1
       if (opts.empty()) {
+        ESP_LOGW(TAG, "Zone select: zone table empty, using fallback");
         // Z1..Z8
         for (uint8_t z = 1; z <= 8; z++) {
           char buf[8];
@@ -48,6 +49,7 @@ void XRSRadioSelect::update_options_() {
 
       // Fallback: generic 1..80 channel list
       if (opts.empty()) {
+        ESP_LOGW(TAG, "Channel select: channel table empty, using fallback");
         for (uint8_t ch = 1; ch <= 80; ch++) {
           char buf[8];
           snprintf(buf, sizeof(buf), "%u", static_cast<unsigned>(ch));
