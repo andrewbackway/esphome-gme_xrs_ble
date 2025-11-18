@@ -3,6 +3,7 @@ import esphome.config_validation as cv
 
 from esphome.components import number
 from esphome.const import (
+    CONF_ID,
     CONF_TYPE,
     CONF_MIN_VALUE,
     CONF_MAX_VALUE,
@@ -10,26 +11,28 @@ from esphome.const import (
 )
 
 from .. import (
-    gme_xrs_radio_ns,
-    GmeXrsRadioComponent,
-    CONF_XRS_ID,
-    XRSNumberTypeMap,
+    XRSRadioComponent,
+    XRSNumberType,
 )
 
-DEPENDENCIES = ["gme_xrs_radio"]
+CONF_XRS_ID = "gme_xrs_id"
 
-# We use the built-in Number base class
-XrsNumber = number.Number
+XRSNumberTypeMap = {
+    "volume": XRSNumberType.XRS_NUMBER_VOLUME,
+}
 
-CONFIG_SCHEMA = number.number_schema(XrsNumber).extend(
+# Base schema for a standard Number entity
+CONFIG_SCHEMA = number.number_schema(number.Number).extend(
     {
-        # Link back to the main GME XRS component
-        cv.GenerateID(CONF_XRS_ID): cv.use_id(GmeXrsRadioComponent),
+        cv.GenerateID(CONF_ID): cv.declare_id(number.Number),
 
-        # Which logical number this is (volume, etc.)
+        # Link back to the main hub
+        cv.GenerateID(CONF_XRS_ID): cv.use_id(XRSRadioComponent),
+
+        # Logical type (only "volume" for now)
         cv.Required(CONF_TYPE): cv.enum(XRSNumberTypeMap, lower=True),
 
-        # User-configurable range
+        # Range config for this number
         cv.Optional(CONF_MIN_VALUE, default=0.0): cv.float_,
         cv.Optional(CONF_MAX_VALUE, default=31.0): cv.float_,
         cv.Optional(CONF_STEP, default=1.0): cv.positive_float,
@@ -46,6 +49,6 @@ async def to_code(config):
         step=config[CONF_STEP],
     )
 
-    # Attach it to the main XRS component
+    # Attach it to the XRS hub
     hub = await cg.get_variable(config[CONF_XRS_ID])
     cg.add(hub.register_number(config[CONF_TYPE], num))
