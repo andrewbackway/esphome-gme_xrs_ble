@@ -9,7 +9,7 @@ from .. import (
     XRSBinarySensorType,
 )
 
-CONF_XRS_ID = "xrs_id"
+CONF_XRS_ID = "gme_xrs_id"
 
 XRSBinarySensorTypeMap = {
     "connected": XRSBinarySensorType.XRS_BIN_CONNECTED,

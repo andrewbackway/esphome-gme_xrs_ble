@@ -9,7 +9,7 @@ from .. import (
     XRSSwitchType,
 )
 
-CONF_XRS_ID = "xrs_id"
+CONF_XRS_ID = "gme_xrs_id"
 
 XRSSwitchTypeMap = {
     "location_mode": XRSSwitchType.XRS_SWITCH_LOCATION_MODE,
