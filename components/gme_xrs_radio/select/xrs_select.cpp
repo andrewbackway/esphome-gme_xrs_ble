@@ -51,8 +51,7 @@ void XRSRadioSelect::refresh_from_parent() {
   // Refresh the options list first
   this->update_options_();
 
-  // Now publish the current value from the hub
-  char buf[32];
+  char buf[32] = {0};
 
   switch (this->type_) {
     case XRSSelectType::XRS_SELECT_ZONE: {
@@ -75,7 +74,7 @@ void XRSRadioSelect::refresh_from_parent() {
   }
 }
 
-void XRSRadioSelect::control(const std::string& value) {
+void XRSRadioSelect::control(const std::string &value) {
   if (this->parent_ == nullptr) {
     ESP_LOGW(TAG, "Select has no parent, ignoring selection '%s'",
              value.c_str());
@@ -93,7 +92,7 @@ void XRSRadioSelect::control(const std::string& value) {
     } else {
       ESP_LOGW(TAG, "Failed to parse zone from '%s'", value.c_str());
     }
-  } else {
+  } else if (this->type_ == XRSSelectType::XRS_SELECT_CHANNEL) {
     // Expect values like "Z1 / Ch 12"
     unsigned zone = 0;
     unsigned ch = 0;
@@ -106,6 +105,7 @@ void XRSRadioSelect::control(const std::string& value) {
     }
   }
 }
+
 
 }  // namespace gme_xrs_radio
 }  // namespace esphome
