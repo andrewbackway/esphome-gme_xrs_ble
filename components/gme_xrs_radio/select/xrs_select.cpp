@@ -3,7 +3,6 @@
 #include <cstdio>
 #include <algorithm>
 
-#include "./xrs_radio.h"  // for XRSRadioComponent, XRSSelectType and helpers
 #include "esphome/core/log.h"
 
 namespace esphome {
