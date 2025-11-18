@@ -617,9 +617,6 @@ void XRSRadioComponent::handle_plus_wgchs_(const std::string& payload) {
     this->current_zone_ = static_cast<uint8_t>(zone);
     this->current_channel_ = static_cast<uint8_t>(ch);
 
-    if (this->sensor_channel_ != nullptr)
-      this->sensor_channel_->publish_state(ch);
-
     auto label =
         this->get_channel_label_(this->current_zone_, this->current_channel_);
     if (this->text_channel_label_ != nullptr)
@@ -733,8 +730,6 @@ void XRSRadioComponent::handle_plus_wgscan_(const std::string& payload) {
   this->scanning_ = (enabled != 0);
 
   if (this->sw_scan_ != nullptr) this->sw_scan_->publish_state(this->scanning_);
-  if (this->bin_scanning_ != nullptr)
-    this->bin_scanning_->publish_state(this->scanning_);
 }
 
 void XRSRadioComponent::handle_plus_wgdup_(const std::string& payload) {
@@ -745,8 +740,6 @@ void XRSRadioComponent::handle_plus_wgdup_(const std::string& payload) {
 
   if (this->sw_duplex_ != nullptr)
     this->sw_duplex_->publish_state(this->duplex_enabled_);
-  if (this->bin_duplex_enabled_ != nullptr)
-    this->bin_duplex_enabled_->publish_state(this->duplex_enabled_);
 }
 
 void XRSRadioComponent::handle_plus_wgcsm_(const std::string& payload) {
@@ -757,8 +750,6 @@ void XRSRadioComponent::handle_plus_wgcsm_(const std::string& payload) {
 
   if (this->sw_silent_memory_ != nullptr)
     this->sw_silent_memory_->publish_state(this->silent_memory_);
-  if (this->bin_silent_memory_ != nullptr)
-    this->bin_silent_memory_->publish_state(this->silent_memory_);
 }
 
 void XRSRadioComponent::handle_plus_wgsqm_(const std::string& payload) {
@@ -769,8 +760,6 @@ void XRSRadioComponent::handle_plus_wgsqm_(const std::string& payload) {
 
   if (this->sw_quiet_memory_ != nullptr)
     this->sw_quiet_memory_->publish_state(this->quiet_memory_);
-  if (this->bin_quiet_memory_ != nullptr)
-    this->bin_quiet_memory_->publish_state(this->quiet_memory_);
 }
 
 // quiet mode
@@ -782,8 +771,6 @@ void XRSRadioComponent::handle_plus_wgssq_(const std::string& payload) {
 
   if (this->sw_quiet_mode_ != nullptr)
     this->sw_quiet_mode_->publish_state(this->quiet_mode_);
-  if (this->bin_quiet_mode_ != nullptr)
-    this->bin_quiet_mode_->publish_state(this->quiet_mode_);
 }
 
 void XRSRadioComponent::handle_plus_wgrmloc_(const std::string& payload) {
