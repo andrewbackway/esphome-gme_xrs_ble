@@ -40,13 +40,7 @@ void XRSRadioSelect::update_options_() {
   }
 
   // Use the base class traits() accessor
-  auto& traits = this->traits();
-  traits.set_options(this->options_);
-}
-
-// Push options into the base Select traits so HA sees them
-auto& traits = this->traits_;
-traits.set_options(this->options_);
+  this->traits.set_options(this->options_);
 }
 
 void XRSRadioSelect::refresh_from_parent() {
@@ -113,5 +107,5 @@ void XRSRadioSelect::control(const std::string& value) {
   }
 }
 
-}  // namespace xrs_radio
+}  // namespace gme_xrs_radio
 }  // namespace esphome
