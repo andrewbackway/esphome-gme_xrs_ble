@@ -576,7 +576,7 @@ void XRSRadioComponent::on_info_line(const std::string& line) {
   // interpret these.
   if (this->last_command_name_ == "WGAV") {
     // Check if the line is a pure integer and treat as volume.
-    char *endptr = nullptr;
+    char* endptr = nullptr;
     long vol = strtol(line.c_str(), &endptr, 10);
 
     if (endptr != line.c_str() && *endptr == '\0') {
@@ -596,7 +596,6 @@ void XRSRadioComponent::on_info_line(const std::string& line) {
   }
 }
 
-
 void XRSRadioComponent::on_echo(const std::string& line) {
   ESP_LOGD(TAG, "AT echo: %s", line.c_str());
 
@@ -607,16 +606,16 @@ void XRSRadioComponent::on_echo(const std::string& line) {
   // We keep just the part after "AT+" up to "?" or "=".
   this->last_command_name_.clear();
 
-  if (line.rfind("AT+", 0) == 0) {  // starts with "AT+"
+  if (line.rfind("AT+", 0) == 0) {     // starts with "AT+"
     std::string cmd = line.substr(3);  // strip "AT+"
 
     // Trim off parameters / query markers
     size_t end = cmd.find_first_of("=?");
-    if (end != std::string::npos)
-      cmd = cmd.substr(0, end);
+    if (end != std::string::npos) cmd = cmd.substr(0, end);
 
     // XRS uses uppercase already, but keep as-is
     this->last_command_name_ = cmd;
+  }
 }
 
 void XRSRadioComponent::on_unknown_line(const std::string& line) {
