@@ -587,29 +587,26 @@ void XRSRadioComponent::handle_plus_gsn_(const std::string& payload) {
     this->text_serial_->publish_state(this->serial_);
 }
 
-void XRSRadioComponent::void XRSRadioComponent::handle_plus_wgchs_(const std::string &payload) {
+void XRSRadioComponent::handle_plus_wgchs_(const std::string& payload) {
   int zone = 0;
   int ch = 0;
   if (sscanf(payload.c_str(), "%d,%d", &zone, &ch) == 2) {
     this->current_zone_ = static_cast<uint8_t>(zone);
     this->current_channel_ = static_cast<uint8_t>(ch);
 
-    if (this->sensor_zone_ != nullptr)
-      this->sensor_zone_->publish_state(zone);
+    if (this->sensor_zone_ != nullptr) this->sensor_zone_->publish_state(zone);
     if (this->sensor_channel_ != nullptr)
       this->sensor_channel_->publish_state(ch);
 
-    auto label = this->get_channel_label_(this->current_zone_,
-                                          this->current_channel_);
+    auto label =
+        this->get_channel_label_(this->current_zone_, this->current_channel_);
     if (this->text_channel_label_ != nullptr)
       this->text_channel_label_->publish_state(label);
 
-    if (this->sel_zone_ != nullptr) {
-      this->sel_zone_->refresh_from_parent();
-    }
-    if (this->sel_channel_ != nullptr) {
+    // keep selects in sync if present
+    if (this->sel_zone_ != nullptr) this->sel_zone_->refresh_from_parent();
+    if (this->sel_channel_ != nullptr)
       this->sel_channel_->refresh_from_parent();
-    }
   }
 }
 

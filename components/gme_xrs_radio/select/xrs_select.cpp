@@ -2,22 +2,20 @@
 
 #include <cstdio>
 
-#include "esphome/core/log.h"
 #include "../xrs_radio.h"  // for XRSRadioComponent, XRSSelectType and helpers
+#include "esphome/core/log.h"
 
 namespace esphome {
 namespace gme_xrs_radio {
 
-static const char *const TAG = "xrs_radio.select";
+static const char* const TAG = "xrs_radio.select";
 
 void XRSRadioSelect::setup() {
   // Populate initial options from the hub
   this->update_options_();
 }
 
-void XRSRadioSelect::dump_config() {
-  ESP_LOGCONFIG(TAG, "XRS Radio Select");
-}
+void XRSRadioSelect::dump_config() { ESP_LOGCONFIG(TAG, "XRS Radio Select"); }
 
 void XRSRadioSelect::update_options_() {
   this->options_.clear();
@@ -41,11 +39,15 @@ void XRSRadioSelect::update_options_() {
       break;
   }
 
-  // Push options into the base Select traits so HA sees them
-  auto &traits = this->traits_;
+  // Use the base class traits() accessor
+  auto& traits = this->traits();
   traits.set_options(this->options_);
 }
 
+// Push options into the base Select traits so HA sees them
+auto& traits = this->traits_;
+traits.set_options(this->options_);
+}
 
 void XRSRadioSelect::refresh_from_parent() {
   if (this->parent_ == nullptr) {
@@ -79,7 +81,7 @@ void XRSRadioSelect::refresh_from_parent() {
   }
 }
 
-void XRSRadioSelect::control(const std::string &value) {
+void XRSRadioSelect::control(const std::string& value) {
   if (this->parent_ == nullptr) {
     ESP_LOGW(TAG, "Select has no parent, ignoring selection '%s'",
              value.c_str());
