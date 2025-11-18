@@ -39,8 +39,6 @@ namespace esp32_ble_client = esphome::esp32_ble_client;
 
 
 enum XRSNumericSensorType {
-  XRS_SENSOR_CHANNEL,
-  XRS_SENSOR_ZONE,
   XRS_SENSOR_PTT_TIMER,
   XRS_SENSOR_REMOTE_SEQ,
   XRS_SENSOR_REMOTE_LATITUDE,
@@ -52,6 +50,7 @@ enum XRSBinarySensorType {
   XRS_BIN_PTT_ACTIVE,
   XRS_BIN_PTT_DATA,
   XRS_BIN_POWER_LOW,
+  XRS_BIN_SCANNING,
 };
 
 enum XRSTextSensorType {
@@ -238,6 +237,12 @@ class XRSRadioComponent : public Component,
   // Power state 0..5 as per WGPOW; text map exposed via text sensor.
   uint8_t power_state_{0};
 
+  bool scanning_{false};
+  bool duplex_enabled_{false};
+  bool silent_memory_{false};
+  bool quiet_memory_{false};
+  bool quiet_mode_{false};
+
   // Device identity
   std::string manufacturer_;
   std::string model_;
@@ -264,6 +269,7 @@ class XRSRadioComponent : public Component,
   binary_sensor::BinarySensor* bin_ptt_active_{nullptr};
   binary_sensor::BinarySensor* bin_ptt_data_{nullptr};
   binary_sensor::BinarySensor* bin_power_low_{nullptr};
+  binary_sensor::BinarySensor* bin_scanning_{nullptr};
 
   text_sensor::TextSensor* text_manufacturer_{nullptr};
   text_sensor::TextSensor* text_model_{nullptr};
