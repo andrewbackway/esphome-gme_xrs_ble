@@ -224,6 +224,9 @@ class XRSRadioComponent : public Component,
   // AT parser
   gme_xrs_radio::ATParser at_parser_;
 
+  // Tracks the last AT command name for simple ATV0-style responses
+  std::string last_command_name_;
+
   // Core radio state
   bool connected_{false};
 

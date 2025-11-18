@@ -426,19 +426,19 @@ void XRSRadioComponent::handle_search_complete_() {
   this->publish_connection_state_(true);
 
   // Initial handshake: echo on, verbose, and basic IDs.
-  this->send_raw_command("ATE1"); // echo
-  this->send_raw_command("ATV1"); // verbose
-  this->send_raw_command("AT+GMI?"); // vendor
-  this->send_raw_command("AT+GMM?"); // model
+  this->send_raw_command("ATE1");     // echo
+  this->send_raw_command("ATV1");     // verbose
+  this->send_raw_command("AT+GMI?");  // vendor
+  this->send_raw_command("AT+GMM?");  // model
   // this->send_raw_command("AT+GMR?"); // firmware version
-  //this->send_raw_command("AT+GSN?"); // serial number
-  //this->send_raw_command("AT+GOI?"); // mac address
-  this->send_raw_command("AT+WGAV?"); // try and get volume? 
-  this->send_raw_command("AT+WGCHS?"); // query current channel
-  this->send_raw_command("AT+WGZR?"); // query current zone
+  // this->send_raw_command("AT+GSN?"); // serial number
+  // this->send_raw_command("AT+GOI?"); // mac address
+  this->send_raw_command("AT+WGAV?");   // try and get volume?
+  this->send_raw_command("AT+WGCHS?");  // query current channel
+  this->send_raw_command("AT+WGZR?");   // query current zone
   // disabled to reduce memory consumption
-  //this->send_raw_command("AT+WGZL"); // list all zones
-  //this->send_raw_command("AT+WGCHL"); // list all channels
+  // this->send_raw_command("AT+WGZL"); // list all zones
+  // this->send_raw_command("AT+WGCHL"); // list all channels
 
   if (this->text_power_state_ != nullptr)
     this->text_power_state_->publish_state("Running");
@@ -568,13 +568,55 @@ void XRSRadioComponent::on_plus_line(const std::string& name,
 void XRSRadioComponent::on_info_line(const std::string& line) {
   ESP_LOGI(TAG, "AT info: %s", line.c_str());
   this->publish_status_(line);
-  if (this->text_last_message_ != nullptr) {
+
+  bool handled = false;
+
+  // Some commands (like WGAV?) return bare values in ATV0 style,
+  // e.g. "5" followed by "OK". Use the last_command_name_ to
+  // interpret these.
+  if (this->last_command_name_ == "WGAV") {
+    // Check if the line is a pure integer and treat as volume.
+    char *endptr = nullptr;
+    long vol = strtol(line.c_str(), &endptr, 10);
+
+    if (endptr != line.c_str() && *endptr == '\0') {
+      // Entire string parsed as integer => looks like a volume response.
+      this->handle_plus_wgav_(line);
+      handled = true;
+    }
+
+    // We’ve consumed the WGAV? response; clear it regardless.
+    this->last_command_name_.clear();
+  }
+
+  // Fallback: if we didn't specially handle it, still expose it
+  // via the "last message" text sensor.
+  if (!handled && this->text_last_message_ != nullptr) {
     this->text_last_message_->publish_state(line);
   }
 }
 
+
 void XRSRadioComponent::on_echo(const std::string& line) {
   ESP_LOGD(TAG, "AT echo: %s", line.c_str());
+
+  // Try to extract the AT command name from lines like:
+  //   "AT+WGAV?"
+  //   "AT+WGAV=5"
+  //   "AT+GMM"
+  // We keep just the part after "AT+" up to "?" or "=".
+  this->last_command_name_.clear();
+
+  if (line.rfind("AT+", 0) == 0) {  // starts with "AT+"
+    std::string cmd = line.substr(3);  // strip "AT+"
+
+    // Trim off parameters / query markers
+    size_t end = cmd.find_first_of("=?");
+    if (end != std::string::npos)
+      cmd = cmd.substr(0, end);
+
+    // XRS uses uppercase already, but keep as-is
+    this->last_command_name_ = cmd;
 }
 
 void XRSRadioComponent::on_unknown_line(const std::string& line) {
@@ -1190,7 +1232,8 @@ void XRSRadioComponent::send_location_update_() {
 
   if (std::isnan(lat) || std::isnan(lon)) return;
 
-  // Time parameter: we don't have RTC integration here, so send "000000" (UTC).
+  // Time parameter: we don't have RTC integration here, so send "000000"
+  // (UTC).
   char cmd[96];
   snprintf(cmd, sizeof(cmd), "AT+WGTLOC=000000,%.6f,%.6f", lat, lon);
   this->send_raw_command(cmd);
