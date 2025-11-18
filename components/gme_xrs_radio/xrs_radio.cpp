@@ -441,6 +441,7 @@ void XRSRadioComponent::handle_search_complete_() {
   this->send_raw_command("AT+GSN?");
   this->send_raw_command("AT+GOI?");
   // If you have a channel table query (e.g. AT+WGCHSQ), send it here as well.
+  this->send_raw_command("AT+WGCHSQ");
 }
 
 void XRSRadioComponent::handle_notify_(uint16_t handle, const uint8_t* data,
