@@ -443,8 +443,8 @@ void XRSRadioComponent::handle_search_complete_() {
   if (this->text_power_state_ != nullptr)
     this->text_power_state_->publish_state("Running");
 
-  if (this->binary_power_low_ != nullptr)
-    this->binary_power_low_->publish_state(false);
+  if (this->bin_power_low_ != nullptr)
+    this->bin_power_low_->publish_state(false);
 }
 
 void XRSRadioComponent::handle_notify_(uint16_t handle, const uint8_t* data,

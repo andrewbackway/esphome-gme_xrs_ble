@@ -60,62 +60,63 @@ void XRSRadioSelect::update_options_() {
       // CRITICAL: teach the base class what options are valid
       this->traits.set_options(this->options_);
   }
+}
 
-  void XRSRadioSelect::refresh_from_parent() {
-    if (this->parent_ == nullptr) return;
+void XRSRadioSelect::refresh_from_parent() {
+  if (this->parent_ == nullptr) return;
 
-    // Rebuild options from the channel table / current state
-    this->update_options_();
+  // Rebuild options from the channel table / current state
+  this->update_options_();
 
-    char buf[32] = {0};
+  char buf[32] = {0};
 
-    switch (this->type_) {
-      case XRS_SELECT_ZONE: {
-        unsigned zone = this->parent_->get_current_zone();
-        std::snprintf(buf, sizeof(buf), "Z%u", zone);
-        this->publish_state(buf);
-        break;
-      }
+  switch (this->type_) {
+    case XRS_SELECT_ZONE: {
+      unsigned zone = this->parent_->get_current_zone();
+      std::snprintf(buf, sizeof(buf), "Z%u", zone);
+      this->publish_state(buf);
+      break;
+    }
 
-      case XRS_SELECT_CHANNEL: {
-        unsigned ch = this->parent_->get_current_channel();
-        std::snprintf(buf, sizeof(buf), "%u", ch);
-        this->publish_state(buf);
-        break;
-      }
+    case XRS_SELECT_CHANNEL: {
+      unsigned ch = this->parent_->get_current_channel();
+      std::snprintf(buf, sizeof(buf), "%u", ch);
+      this->publish_state(buf);
+      break;
+    }
 
-      default:
-        break;
+    default:
+      break;
+  }
+}
+
+void XRSRadioSelect::control(const std::string& value) {
+  if (this->parent_ == nullptr) return;
+
+  // Value is already validated against traits/options by the base class
+
+  if (this->type_ == XRS_SELECT_ZONE) {
+    // Value looks like "Z1", "Z2", ...
+    unsigned zone = 0;
+    if (std::sscanf(value.c_str(), "Z%u", &zone) == 1) {
+      this->parent_->set_zone(static_cast<uint8_t>(zone));
+      this->publish_state(value);
+    } else {
+      ESP_LOGW(TAG, "Zone select: could not parse '%s'", value.c_str());
+    }
+  } else if (this->type_ == XRS_SELECT_CHANNEL) {
+    // Value is the channel number within the current zone, e.g. "46".
+    unsigned ch = 0;
+    if (std::sscanf(value.c_str(), "%u", &ch) == 1) {
+      unsigned zone = this->parent_->get_current_zone();
+      this->parent_->set_channel(static_cast<uint8_t>(zone),
+                                 static_cast<uint8_t>(ch));
+      this->publish_state(value);
+    } else {
+      ESP_LOGW(TAG, "Channel select: could not parse '%s'", value.c_str());
     }
   }
-
-  void XRSRadioSelect::control(const std::string& value) {
-    if (this->parent_ == nullptr) return;
-
-    // Value is already validated against traits/options by the base class
-
-    if (this->type_ == XRS_SELECT_ZONE) {
-      // Value looks like "Z1", "Z2", ...
-      unsigned zone = 0;
-      if (std::sscanf(value.c_str(), "Z%u", &zone) == 1) {
-        this->parent_->set_zone(static_cast<uint8_t>(zone));
-        this->publish_state(value);
-      } else {
-        ESP_LOGW(TAG, "Zone select: could not parse '%s'", value.c_str());
-      }
-    } else if (this->type_ == XRS_SELECT_CHANNEL) {
-      // Value is the channel number within the current zone, e.g. "46".
-      unsigned ch = 0;
-      if (std::sscanf(value.c_str(), "%u", &ch) == 1) {
-        unsigned zone = this->parent_->get_current_zone();
-        this->parent_->set_channel(static_cast<uint8_t>(zone),
-                                   static_cast<uint8_t>(ch));
-        this->publish_state(value);
-      } else {
-        ESP_LOGW(TAG, "Channel select: could not parse '%s'", value.c_str());
-      }
-    }
-  }
+}
 
 }  // namespace gme_xrs_radio
 }  // namespace esphome
