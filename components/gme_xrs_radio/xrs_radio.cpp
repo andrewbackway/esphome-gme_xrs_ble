@@ -1207,8 +1207,9 @@ std::string XRSRadioComponent::get_channel_label_(uint8_t zone,
   }
 
   char buf[32];
-  snprintf(buf, sizeof(buf), "Z%u / Ch %u", static_cast<unsigned>(zone),
-           static_cast<unsigned>(channel));
+  //snprintf(buf, sizeof(buf), "Z%u / Ch %u", static_cast<unsigned>(zone),
+  //         static_cast<unsigned>(channel));
+  snprintf(buf, sizeof(buf), "Ch %u", static_cast<unsigned>(channel));
   return std::string(buf);
 }
 
