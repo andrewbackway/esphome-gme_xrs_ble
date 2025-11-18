@@ -433,12 +433,18 @@ void XRSRadioComponent::handle_search_complete_() {
   this->send_raw_command("AT+GMR?");
   this->send_raw_command("AT+GSN?");
   this->send_raw_command("AT+GOI?");
+  this->send_raw_command("AT+WGZL"); // list all zones
+  this->send_raw_command("AT+WGCHL"); // list all channels
 
-  // If you have a channel table query (e.g. AT+WGCHSQ), send it here as well.
-  this->send_raw_command("AT+WGCHSQ");
   //  Ask for the current zone/channel so we initialise to the
   //    real radio state (this should trigger a +WGCHS: z,ch reply)
   this->send_raw_command("AT+WGCHS?");
+
+  if (this->text_power_state_ != nullptr)
+    this->text_power_state_->publish_state("Running");
+
+  if (this->binary_power_low_ != nullptr)
+    this->binary_power_low_->publish_state(false);
 }
 
 void XRSRadioComponent::handle_notify_(uint16_t handle, const uint8_t* data,
@@ -578,12 +584,15 @@ void XRSRadioComponent::on_unknown_line(const std::string& line) {
 
 // Volume report
 void XRSRadioComponent::handle_plus_wgav_(const std::string& payload) {
-  int vol = 0;
-  if (sscanf(payload.c_str(), "%d", &vol) == 1) {
-    this->current_volume_ = static_cast<uint8_t>(vol);
-    if (this->number_volume_ != nullptr)
-      this->number_volume_->refresh_from_parent();
-  }
+  // payload is just "<volume>"
+  int vol = strtol(payload.c_str(), nullptr, 10);
+  if (vol < 0) vol = 0;
+  if (vol > 31) vol = 31;
+
+  this->current_volume_ = static_cast<uint8_t>(vol);
+
+  if (this->number_volume_ != nullptr)
+    this->number_volume_->publish_state(static_cast<float>(vol));
 }
 
 void XRSRadioComponent::handle_plus_gmi_(const std::string& payload) {
