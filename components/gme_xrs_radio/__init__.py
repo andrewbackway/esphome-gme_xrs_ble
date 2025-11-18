@@ -10,21 +10,21 @@ CONF_LATITUDE = "latitude"
 CONF_LONGITUDE = "longitude"
 CONF_LOCATION_INTERVAL = "location_interval"
 
-xrs_radio_ns = cg.esphome_ns.namespace("xrs_radio")
+gme_xrs_radio_ns = cg.esphome_ns.namespace("gme_xrs_radio")
 
-XRSRadioComponent = xrs_radio_ns.class_(
+XRSRadioComponent = gme_xrs_radio_ns.class_(
     "XRSRadioComponent",
     cg.Component,
     ble_client.BLEClientNode,
 )
 
 # Enums – must match the C++ names
-XRSNumericSensorType = xrs_radio_ns.enum("XRSNumericSensorType")
-XRSBinarySensorType = xrs_radio_ns.enum("XRSBinarySensorType")
-XRSTextSensorType = xrs_radio_ns.enum("XRSTextSensorType")
-XRSNumberType = xrs_radio_ns.enum("XRSNumberType")
-XRSSwitchType = xrs_radio_ns.enum("XRSSwitchType")
-XRSSelectType = xrs_radio_ns.enum("XRSSelectType")
+XRSNumericSensorType = gme_xrs_radio_ns.enum("XRSNumericSensorType")
+XRSBinarySensorType = gme_xrs_radio_ns.enum("XRSBinarySensorType")
+XRSTextSensorType = gme_xrs_radio_ns.enum("XRSTextSensorType")
+XRSNumberType = gme_xrs_radio_ns.enum("XRSNumberType")
+XRSSwitchType = gme_xrs_radio_ns.enum("XRSSwitchType")
+XRSSelectType = gme_xrs_radio_ns.enum("XRSSelectType")
 
 AUTO_LOAD = ["ble_client"]
 

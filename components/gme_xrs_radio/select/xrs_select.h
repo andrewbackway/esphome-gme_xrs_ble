@@ -7,7 +7,7 @@
 #include "esphome/components/select/select.h"
 
 namespace esphome {
-namespace xrs_radio {
+namespace gme_xrs_radio {
 
 class XRSRadioComponent;
 enum class XRSSelectType;  // forward declaration of the enum from xrs_radio.h

@@ -4,11 +4,11 @@ import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_TYPE
 from esphome.components import select as select_base
 
-from .. import XRSRadioComponent, XRSSelectType, xrs_radio_ns
+from .. import XRSRadioComponent, XRSSelectType, gme_xrs_radio_ns
 
 CONF_XRS_ID = "gme_xrs_id"
 
-XRSRadioSelect = xrs_radio_ns.class_(
+XRSRadioSelect = gme_xrs_radio_ns.class_(
     "XRSRadioSelect", select_base.Select, cg.Component
 )
 

@@ -6,7 +6,7 @@
 #include "../xrs_radio.h"  // for XRSRadioComponent, XRSSelectType and helpers
 
 namespace esphome {
-namespace xrs_radio {
+namespace gme_xrs_radio {
 
 static const char *const TAG = "xrs_radio.select";
 
