@@ -225,20 +225,20 @@ void XRSRadioComponent::register_switch(XRSSwitchType type,
   }
 }
 
-
 void XRSRadioComponent::register_select(XRSSelectType type,
-                                        XRSRadioSelect* sel) {
+                                        XRSRadioSelect *sel) {
   switch (type) {
-    case XRSSelectType::XRS_SELECT_ZONE:
+    case XRS_SELECT_ZONE:
       this->sel_zone_ = sel;
       break;
-    case XRSSelectType::XRS_SELECT_CHANNEL:
+    case XRS_SELECT_CHANNEL:
       this->sel_channel_ = sel;
       break;
     default:
       break;
   }
 }
+
 
 // -----------------------------------------------------------------------------
 // BLE client callbacks
