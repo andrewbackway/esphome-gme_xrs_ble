@@ -26,11 +26,6 @@ XRSNumberType = gme_xrs_radio_ns.enum("XRSNumberType")
 XRSSwitchType = gme_xrs_radio_ns.enum("XRSSwitchType")
 XRSSelectType = gme_xrs_radio_ns.enum("XRSSelectType")
 
-XRS_RADIO_SELECT_TYPES = {
-    "zone": XRSSelectType.XRS_SELECT_ZONE,
-    "channel": XRSSelectType.XRS_SELECT_CHANNEL,
-}
-
 AUTO_LOAD = ["ble_client"]
 
 CONFIG_SCHEMA = (
