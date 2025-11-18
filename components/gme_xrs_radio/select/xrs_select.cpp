@@ -7,6 +7,17 @@ namespace gme_xrs_radio {
 
 static const char *const TAG = "gme_xrs_radio.select";
 
+void XRSRadioSelect::setup() {
+  // Initialize options so the entity in Home Assistant isn't empty on boot
+  this->update_options_();
+}
+
+void XRSRadioSelect::dump_config() {
+  LOG_SELECT("", "GME XRS Select", this);
+  ESP_LOGCONFIG(TAG, "  Select Type: %s", 
+    this->type_ == XRS_SELECT_ZONE ? "ZONE" : "CHANNEL");
+}
+
 void XRSRadioSelect::update_options_() {
   if (this->parent_ == nullptr)
     return;
