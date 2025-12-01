@@ -70,7 +70,16 @@ void XRSRadioSelect::update_options_() {
 
   // Store and expose to the base class / API
   this->options_ = std::move(opts);
-  this->traits.set_options(this->options_);
+
+  esphome::FixedVector<const char*> fixed_options;
+  if (!this->options_.empty()) {
+    fixed_options.reserve(this->options_.size());
+    for (const auto& option : this->options_) {
+      fixed_options.push_back(option.c_str());
+    }
+  }
+
+  this->traits.set_options(fixed_options);
 }
 
 void XRSRadioSelect::refresh_from_parent() {
