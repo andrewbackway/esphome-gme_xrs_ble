@@ -73,7 +73,6 @@ void XRSRadioSelect::update_options_() {
 
   esphome::FixedVector<const char*> fixed_options;
   if (!this->options_.empty()) {
-    fixed_options.reserve(this->options_.size());
     for (const auto& option : this->options_) {
       fixed_options.push_back(option.c_str());
     }
