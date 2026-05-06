@@ -270,7 +270,7 @@ This project is open source. Please check the repository for specific license in
 
 ## Acknowledgments
 
-- GME for their XRS radio series (feel free to send me gear, you guys make quality gear)
+- GME for their XRS radio series (feel free to send me gear, you guys make quality stuff!)
 - ESPHome community for the excellent framework
 - Protocol analysis based on observed behavior of the Android app and published datasheet.
 
