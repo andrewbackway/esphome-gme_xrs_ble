@@ -1,4 +1,4 @@
-# XRS AT Command Protocol – Reverse‑Engineered Specification
+# XRS AT Command Protocol – Specification
 
 ## 1. Overview
 
@@ -325,4 +325,3 @@ A typical session between client and radio follows this pattern:
    - The client stops sending commands.
    - Reconnect logic periodically scans for the last‑known XRS radio and attempts to reconnect.
 
-This specification should be sufficient to build a compatible client or a test harness that can talk to the XRS radio over Bluetooth and exercise its key features (handshake, configuration, location updates, status messages, and phone‑call‑driven mute).
